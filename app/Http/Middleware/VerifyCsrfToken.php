@@ -14,4 +14,14 @@ class VerifyCsrfToken extends Middleware
     protected $except = [
         //
     ];
+
+    /**
+     * Determine if the application is running unit tests.
+     *
+     * @return bool
+     */
+    protected function runningUnitTests()
+    {
+        return parent::runningUnitTests() || (app()->runningInConsole() && defined('PHPUNIT_COMPOSER_INSTALL'));
+    }
 }
