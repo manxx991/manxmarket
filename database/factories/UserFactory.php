@@ -23,10 +23,12 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
+        $defaultPassword = config('auth.seed_default_password', 'password123');
+
         return [
             'name' => fake()->name(),
             'username' => preg_replace('/[^a-z0-9_]/', '', strtolower(fake()->unique()->userName())),
-            'password' => static::$password ??= Hash::make('password123'),
+            'password' => static::$password ??= Hash::make($defaultPassword),
             'role' => 'kasir',
             'is_active' => 1,
             'credit_limit' => 0,

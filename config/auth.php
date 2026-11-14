@@ -112,4 +112,16 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Default Password for Seeders & Factories
+    |--------------------------------------------------------------------------
+    |
+    | Digunakan saat provisioning database awal. Wajib diganti di file .env
+    | server produksi menggunakan SEED_DEFAULT_PASSWORD acak & aman.
+    |
+    */
+
+    'seed_default_password' => env('SEED_DEFAULT_PASSWORD', 'password123'),
+
 ];

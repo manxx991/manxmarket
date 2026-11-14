@@ -13,12 +13,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $defaultPassword = config('auth.seed_default_password', 'password123');
+        $hashedPassword = \Illuminate\Support\Facades\Hash::make($defaultPassword);
+
         // Seed default initial accounts if not present
         User::firstOrCreate(
             ['username' => 'owner'],
             [
                 'name' => 'Owner Toko',
-                'password' => \Illuminate\Support\Facades\Hash::make('password123'),
+                'password' => $hashedPassword,
                 'role' => 'owner',
                 'is_active' => 1,
                 'credit_limit' => 0,
@@ -30,7 +33,7 @@ class DatabaseSeeder extends Seeder
             ['username' => 'kasir'],
             [
                 'name' => 'Kasir Utama',
-                'password' => \Illuminate\Support\Facades\Hash::make('password123'),
+                'password' => $hashedPassword,
                 'role' => 'kasir',
                 'is_active' => 1,
                 'credit_limit' => 0,
@@ -42,7 +45,7 @@ class DatabaseSeeder extends Seeder
             ['username' => 'gudang'],
             [
                 'name' => 'Staf Gudang',
-                'password' => \Illuminate\Support\Facades\Hash::make('password123'),
+                'password' => $hashedPassword,
                 'role' => 'gudang',
                 'is_active' => 1,
                 'credit_limit' => 0,
@@ -54,7 +57,7 @@ class DatabaseSeeder extends Seeder
             ['username' => 'pembeli'],
             [
                 'name' => 'Pelanggan Grosir Bpk. H. Ahmad',
-                'password' => \Illuminate\Support\Facades\Hash::make('password123'),
+                'password' => $hashedPassword,
                 'role' => 'pembeli',
                 'is_active' => 1,
                 'credit_limit' => 10000000.00,
