@@ -22,3 +22,9 @@ yarn-error.log
 /.vscode
 /.zed
 *.sql
+*.log
+*.key
+*.pem
+*.crt
+Thumbs.db
+.DS_Store
