@@ -36,37 +36,38 @@ Begitu pengguna berhasil diautentikasi pada halaman `login.php` (atau mengakses 
 
 | Modul & Fitur | Halaman URL | Owner | Kasir | Gudang | Pembeli |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| **Laporan & Analitik Keuangan** | `reports.php` | **Akses Penuh** | Ditolak (403) | Ditolak (403) | Ditolak (403) |
-| **Meja Kasir POS & Transaksi** | `pos.php` | Akses Penuh | **Akses Penuh** | Ditolak (403) | Ditolak (403) |
-| **Riwayat Nota & Eksekusi Void** | `transactions.php` | Akses Penuh | **Akses Penuh** | Ditolak (403) | Ditolak (403) |
-| **Katalog Stok & Mutasi Gudang** | `inventory.php` | Akses Penuh | Ditolak (403) | **Akses Penuh** | Ditolak (403) |
-| **Buku Hutang Piutang & Cicilan** | `receivables.php` | Akses Penuh | **Akses Penuh** | Ditolak (403) | Ditolak (403) |
-| **Manajemen Role & User (Penuh)** | `roles.php` | **Semua Role** | Role Terbatas* | Ditolak (403) | Ditolak (403) |
-| **Pengaturan Toko & QRIS Merchant** | `settings.php` | **Akses Penuh** | Ditolak (403) | Ditolak (403) | Ditolak (403) |
-| **Portal Pelanggan Grosir** | `portal.php` | Akses Pantau | Ditolak (403) | Ditolak (403) | **Akses Penuh** |
+| **Laporan & Analitik Keuangan** | `/reports` | **Akses Penuh** | Ditolak (403) | Ditolak (403) | Ditolak (403) |
+| **Meja Kasir POS & Transaksi** | `/pos` | Akses Penuh | **Akses Penuh** | Ditolak (403) | Ditolak (403) |
+| **Riwayat Nota & Eksekusi Void** | `/transactions` | **Akses Penuh (Bisa Void)** | Lihat & Cetak Saja* | Ditolak (403) | Ditolak (403) |
+| **Katalog Stok & Mutasi Gudang** | `/inventory` | Akses Penuh | Ditolak (403) | **Akses Penuh** | Ditolak (403) |
+| **Buku Hutang Piutang & Cicilan** | `/receivables` | Akses Penuh | **Akses Penuh** | Ditolak (403) | Ditolak (403) |
+| **Manajemen Role & User (Penuh)** | `/roles` | **Akses Eksklusif** | Ditolak (403)* | Ditolak (403) | Ditolak (403) |
+| **Pengaturan Toko & QRIS Merchant** | `/settings` | **Akses Penuh** | Ditolak (403) | Ditolak (403) | Ditolak (403) |
+| **Portal Pelanggan Grosir** | `/portal` | Akses Pantau | Ditolak (403) | Ditolak (403) | **Akses Penuh** |
+
+*\*Catatan:* 
+- Kasir dapat mendaftarkan pelanggan baru khusus role `pembeli` langsung dari meja POS (`/pos`) via endpoint `/api/customers/register` dengan plafon kredit otomatis Rp 0 (ditegakkan ketat di server).
+- Eksekusi pembatalan nota (VOID) pada `/transactions` mutlak wewenang Owner; kontrol void disembunyikan total dari UI kasir dan dilindungi middleware `role:owner`.
 
 ---
 
-## 3. Fitur Khusus: Aksi Penambahan Role (Owner & Kasir)
+## 3. Fitur Khusus: Pendaftaran Pelanggan & Hak Akses Role
 
-Sesuai kebutuhan operasional pasar grosir, penambahan pengguna baru didelegasikan secara terstruktur antara Owner dan Kasir melalui antarmuka `roles.php` dan endpoint `api/users_api.php`.
+Sesuai kebutuhan operasional pasar grosir dan mitigasi risiko kasbon liar, pembagian wewenang pengguna ditetapkan ketat sebagai berikut:
 
-### 3.1. Hak Penambahan Role oleh Owner
-* **Cakupan Role:** Owner berhak membuat seluruh jenis akun (`owner`, `kasir`, `gudang`, `pembeli`).
-* **Fitur Tambahan:**
-  * Mengaktifkan atau menonaktifkan akun karyawan (*toggle active status*).
-  * Mengubah batas plafon kredit hutang tempo untuk pelanggan grosir.
-  * Audit seluruh daftar pengguna lintas divisi.
+### 3.1. Hak Eksklusif Owner (`/roles` & `/api/roles`)
+* **Cakupan Penuh:** Owner memegang wewenang mutlak untuk membuat dan mengelola seluruh jenis akun (`owner`, `kasir`, `gudang`, `pembeli`).
+* **Fitur Eksklusif:**
+  * Mengaktifkan atau menonaktifkan akun staf/pelanggan (*toggle active status*).
+  * Menentukan serta mengubah batas plafon kredit hutang kasbon (*credit_limit*) untuk pelanggan grosir.
+  * Audit seluruh daftar pengguna dan staf toko.
 
-### 3.2. Hak Penambahan Role oleh Kasir
-* **Cakupan Role Terbatas:** Kasir secara khusus berwenang mendaftarkan:
-  1. **Role Kasir:** Menambah kasir baru untuk shift berikutnya atau kasir pembantu saat toko sedang ramai.
-  2. **Role Pembeli:** Mendaftarkan pelanggan grosir baru yang hendak membuka akun belanja tempo/kasbon beserta pengaturan awal *Credit Limit* (Plafon Kredit).
-* **Proteksi Keamanan Backend (Strict Enforcement):**
-  * Jika kasir mencoba mengirimkan request pembuatan role `owner` atau `gudang`, backend `api/users_api.php` secara otomatis menolak request dengan status **HTTP 403 Forbidden** (*"Kasir hanya diizinkan menambahkan role Kasir dan Pembeli"*).
-  * Kasir tidak memiliki akses untuk menonaktifkan akun Owner maupun akun lainnya.
-* **Modal Cepat di Meja Kasir (`pos.php`):**
-  Kasir dapat menekan tombol **[ + Tambah Role ]** di bagian atas meja kasir tanpa harus meninggalkan transaksi yang sedang berjalan. Pelanggan grosir yang baru didaftarkan langsung muncul otomatis pada dropdown pelanggan di panel keranjang.
+### 3.2. Hak Terbatas Kasir Meja POS (`/api/customers/register`)
+* **Pendaftaran Pelanggan Baru Khusus Pembeli:** Kasir berwenang mendaftarkan pelanggan walk-in baru langsung melalui modal `+ Pelanggan` di meja kasir (`/pos`).
+* **Proteksi Mutlak Server (Strict Server-Side Enforcement):**
+  * Server secara mutlak memaksakan `role = 'pembeli'` dan `credit_limit = 0.00`, mengabaikan input apapun dari client.
+  * Kasir tidak memiliki akses ke halaman `/roles` maupun endpoint `/api/roles` (keduanya terkunci ke `role:owner` dengan respon **HTTP 403 Forbidden**).
+  * Pembuatan akun staf dan kenaikan plafon kredit belanja tempo mutlak wewenang Owner.
 
 ---
 
@@ -103,14 +104,15 @@ Sistem mendukung integrasi QRIS dari penyedia mana pun (Shopee Partner / ShopeeP
 * **Pencatatan Pembayaran Fleksibel:** Mendukung pembayaran sebagian (cicilan bertahap) maupun pelunasan penuh melalui metode **Tunai** dan **QRIS Dinamis**.
 * **Nomor Kuitansi Unik:** Bukti bayar otomatis berformat `PAY-YYYYMMDD-XXXX` yang tersimpan di tabel `receivable_payments`.
 
-### 4.5. Riwayat Transaksi & Pembatalan Void (`transactions.php`)
+### 4.5. Riwayat Transaksi & Pembatalan Void (`/transactions`)
 * **Audit Trail Transaksi Kasir:** Pencarian dan filter berdasarkan nomor nota, rentang tanggal, status (*Lunas*, *Belum Lunas*, *Void*), dan metode pembayaran.
 * **Cetak Ulang Struk Thermal (*Reprint*):** Modal struk kasir yang dapat langsung dicetak ke printer thermal 58mm/80mm atau disimpan sebagai PDF.
-* **Mekanisme Pembatalan Nota (Void Aman):**
+* **Mekanisme Pembatalan Nota (Void Eksklusif Owner):**
+  * Otorisasi mutlak milik **Owner**. Tombol void dihilangkan dari antarmuka kasir dan endpoint diproteksi middleware `role:owner`.
   * Mewajibkan pengisian alasan pembatalan minimal 5 karakter.
   * Status transaksi diubah menjadi `void` (tidak dihapus fisik).
   * Seluruh kuantitas barang yang terjual **otomatis dikembalikan (*restock*) ke saldo gudang**.
-  * Tagihan piutang terkait (jika tempo) otomatis dibatalkan.
+  * Tagihan piutang terkait (jika tempo) otomatis dibatalkan (kecuali jika sudah ada cicilan yang masuk).
 
 ### 4.6. Laporan Keuangan & Analisis Laba Kotor (`reports.php`)
 * **Filter Periode Terstruktur:** Pilihan rentang cepat *Harian*, *Mingguan*, *Bulanan*, serta kalender tanggal kustom.
