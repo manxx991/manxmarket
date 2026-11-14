@@ -288,12 +288,16 @@ function closeReceiptModal() {
 }
 
 // Dedicated Thermal Receipt Print Function (Isolated Iframe to prevent page leaks)
-window.printThermalReceipt = function() {
+// Supports dynamic paper width: '58mm' (compact portable/bluetooth) and '80mm' (desktop standard)
+window.printThermalReceipt = function(paperWidth) {
     const content = document.getElementById('receiptContent');
     if (!content) {
         window.print();
         return;
     }
+
+    const width = paperWidth || localStorage.getItem('manxmarket_receipt_width') || '58mm';
+    localStorage.setItem('manxmarket_receipt_width', width);
 
     let printFrame = document.getElementById('thermalPrintIframe');
     if (printFrame) {
@@ -311,6 +315,13 @@ window.printThermalReceipt = function() {
     printFrame.style.visibility = 'hidden';
     document.body.appendChild(printFrame);
 
+    const is58 = (width === '58mm');
+    const pageSize = is58 ? '58mm auto' : '80mm auto';
+    const bodyWidth = is58 ? '48mm' : '72mm';
+    const fontSize = is58 ? '9.5px' : '11px';
+    const titleSize = is58 ? '11.5px' : '13px';
+    const padding = is58 ? '2mm 1mm' : '4mm 2mm';
+
     const frameDoc = printFrame.contentWindow.document;
     frameDoc.open();
     frameDoc.write(`
@@ -318,10 +329,10 @@ window.printThermalReceipt = function() {
         <html lang="id">
         <head>
             <meta charset="utf-8">
-            <title>Struk Pembayaran</title>
+            <title>Struk Pembayaran (${is58 ? '58mm' : '80mm'})</title>
             <style>
                 @page {
-                    size: 80mm auto;
+                    size: ${pageSize};
                     margin: 0;
                 }
                 * {
@@ -330,14 +341,14 @@ window.printThermalReceipt = function() {
                     padding: 0;
                 }
                 body {
-                    margin: 0;
-                    padding: 4mm 2mm;
+                    margin: 0 auto;
+                    padding: ${padding};
                     font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
-                    font-size: 11px;
-                    line-height: 1.35;
+                    font-size: ${fontSize};
+                    line-height: 1.3;
                     color: #000000;
                     background: #ffffff;
-                    width: 72mm;
+                    width: ${bodyWidth};
                 }
                 .thermal-receipt {
                     width: 100%;
@@ -349,29 +360,30 @@ window.printThermalReceipt = function() {
                 .receipt-header {
                     text-align: center;
                     border-bottom: 1px dashed #000;
-                    padding-bottom: 6px;
-                    margin-bottom: 6px;
+                    padding-bottom: 5px;
+                    margin-bottom: 5px;
                 }
                 .receipt-title {
-                    font-size: 13px;
+                    font-size: ${titleSize};
                     font-weight: bold;
                     margin-bottom: 2px;
                 }
                 .receipt-row {
                     display: flex;
                     justify-content: space-between;
-                    margin-bottom: 3px;
+                    margin-bottom: 2.5px;
+                    word-break: break-word;
                 }
                 .receipt-divider {
                     border-top: 1px dashed #000;
-                    margin: 6px 0;
+                    margin: 5px 0;
                 }
                 .receipt-footer {
                     text-align: center;
                     border-top: 1px dashed #000;
-                    padding-top: 6px;
-                    margin-top: 8px;
-                    font-size: 10px;
+                    padding-top: 5px;
+                    margin-top: 6px;
+                    font-size: ${is58 ? '8.5px' : '10px'};
                 }
             </style>
         </head>
@@ -393,8 +405,8 @@ window.printThermalReceipt = function() {
             if (printFrame && printFrame.parentNode) {
                 printFrame.parentNode.removeChild(printFrame);
             }
-        }, 2000);
-    }, 200);
+        }, 3000);
+    }, 250);
 };
 
 // Subtle audio tactile feedback for actions
@@ -1097,14 +1109,17 @@ class PosEngine {
     }
 
     handleBarcodeOrFirstMatch() {
-        const query = this.searchQuery;
+        const query = (this.searchQuery || '').trim();
         if (!query) return;
 
-        // Exact match on barcode or sku first
-        const exact = this.products.find(p => p.barcode === query || p.sku.toLowerCase() === query);
+        // Exact match on barcode or sku first (case-insensitive & trimmed)
+        const exact = this.products.find(p => 
+            (p.barcode && p.barcode.trim().toLowerCase() === query.toLowerCase()) || 
+            (p.sku && p.sku.trim().toLowerCase() === query.toLowerCase())
+        );
         if (exact) {
             this.addToCart(exact.id);
-            this.searchInput.value = '';
+            if (this.searchInput) this.searchInput.value = '';
             this.searchQuery = '';
             this.renderCatalog();
             return;
@@ -1114,9 +1129,17 @@ class PosEngine {
         const filtered = this.getFilteredProducts();
         if (filtered.length === 1) {
             this.addToCart(filtered[0].id);
-            this.searchInput.value = '';
+            if (this.searchInput) this.searchInput.value = '';
             this.searchQuery = '';
             this.renderCatalog();
+            return;
+        }
+
+        if (filtered.length === 0) {
+            if (typeof playWarningTone === 'function') playWarningTone();
+            if (typeof showToast === 'function') {
+                showToast(`Barcode / SKU "${query}" tidak ditemukan di katalog.`, 'warning');
+            }
         }
     }
 
@@ -1243,6 +1266,7 @@ class PosEngine {
         if (!prod) return;
 
         if (prod.stock <= 0) {
+            if (typeof playWarningTone === 'function') playWarningTone();
             showToast(`Stok produk ${prod.name} sedang kosong.`, 'error');
             return;
         }
@@ -1250,6 +1274,7 @@ class PosEngine {
         const existing = this.cart.find(c => c.product_id === productId);
         if (existing) {
             if (existing.qty + 1 > prod.stock) {
+                if (typeof playWarningTone === 'function') playWarningTone();
                 showToast(`Tidak dapat menambah barang melebihi stok yang tersedia (${prod.stock} ${prod.unit}).`, 'warning');
                 return;
             }
@@ -1270,6 +1295,7 @@ class PosEngine {
             });
         }
 
+        if (typeof playSuccessTone === 'function') playSuccessTone();
         this.renderCart();
     }
 

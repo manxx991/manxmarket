@@ -37,7 +37,7 @@
             <div class="relative">
                 <label for="searchInput" class="sr-only">Ketik nama produk, SKU, atau scan barcode</label>
                 <span class="material-symbols-outlined absolute left-3.5 top-3 text-text-muted text-[20px]" aria-hidden="true">search</span>
-                <input type="text" id="searchInput" class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-main dark:text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all font-mono" placeholder="Ketik nama produk, SKU, atau scan barcode... (Tekan F2)">
+                <input type="text" id="searchInput" autofocus class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-main dark:text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all font-mono" placeholder="Ketik nama produk, SKU, atau scan barcode... (Tekan F2)">
             </div>
 
             <!-- Horizontal Filter Badges -->
@@ -441,6 +441,20 @@
             e.preventDefault();
             const input = document.getElementById('searchInput');
             if (input) input.focus();
+        } else if (e.key === 'Escape') {
+            // Refokus pencarian jika modal ditutup
+            const input = document.getElementById('searchInput');
+            if (input) setTimeout(() => input.focus(), 120);
+        } else {
+            // Scanner autofocus: Jika kasir scan barcode saat kursor berada di luar form input/modal
+            const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+            const isModalOpen = document.querySelector('.modal-overlay.active, .modal-backdrop:not(.hidden)');
+            if (!isModalOpen && activeTag !== 'input' && activeTag !== 'textarea' && activeTag !== 'select') {
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput && e.key && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                    searchInput.focus();
+                }
+            }
         }
     });
 </script>
