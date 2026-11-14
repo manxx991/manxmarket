@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\Receivable;
 use App\Models\Transaction;
@@ -36,7 +37,7 @@ class PortalController extends Controller
 
         $customerId = $customer->id;
 
-        $myReceivables = Receivable::with('transaction')
+        $myReceivables = Receivable::with(['transaction', 'payments.receiver'])
             ->where('customer_id', $customerId)
             ->where('status', '!=', 'void')
             ->orderByRaw("(status = 'belum_lunas') DESC")
@@ -47,10 +48,16 @@ class PortalController extends Controller
         $creditLimit = (float)($customer->credit_limit ?? 0);
         $remainingCredit = max(0, $creditLimit - $totalUnpaid);
 
-        $myTransactions = Transaction::with(['items', 'cashier'])
+        $myTransactions = Transaction::with(['items', 'cashier', 'receivable'])
             ->where('customer_id', $customerId)
             ->orderBy('transaction_date', 'desc')
             ->limit(20)
+            ->get();
+
+        $categories = Category::withCount(['products' => function ($q) {
+                $q->where('is_active', 1);
+            }])
+            ->orderBy('name', 'asc')
             ->get();
 
         $catalog = Product::with(['category', 'activeWholesaleRule'])
@@ -66,6 +73,7 @@ class PortalController extends Controller
             'creditLimit',
             'remainingCredit',
             'myTransactions',
+            'categories',
             'catalog'
         ));
     }

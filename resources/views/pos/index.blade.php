@@ -6,7 +6,7 @@
 @section('content')
 <div class="grid grid-cols-1 lg:grid-cols-[1fr_390px] xl:grid-cols-[1fr_420px] gap-4 lg:gap-6 w-full">
     <!-- LEFT / CENTER AREA: Products Catalog & Quick Operations -->
-    <div class="flex flex-col gap-space-md min-w-0">
+    <div class="flex flex-col gap-space-md min-w-0 order-2 lg:order-1">
         <!-- Top Action Bar & Category Strip -->
         <div class="bg-surface-white dark:bg-slate-900 rounded-2xl p-space-md shadow-sm border border-border-subtle dark:border-slate-800 flex flex-col gap-space-md transition-colors">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
@@ -21,6 +21,11 @@
                 </div>
 
                 <div class="flex items-center gap-space-xs bg-background-canvas dark:bg-slate-800 p-1 rounded-xl border border-border-subtle dark:border-slate-700">
+                    <button type="button" onclick="posApp && posApp.scrollToCart()" class="lg:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-xs text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/50 shadow-xs font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors cursor-pointer" aria-label="Ke Keranjang Kasir">
+                        <span class="material-symbols-outlined text-[16px]">shopping_cart</span>
+                        <span>Keranjang</span>
+                        <span id="catalogCartCount" class="font-mono tabular-nums font-bold text-[10px] px-1.5 py-0.5 rounded-full bg-blue-600 text-white">0</span>
+                    </button>
                     <button type="button" onclick="document.getElementById('searchInput').focus()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-white dark:bg-slate-900 text-xs text-text-main dark:text-white shadow-xs font-semibold hover:text-primary dark:hover:text-blue-400 transition-colors cursor-pointer">
                         <span class="material-symbols-outlined text-[16px] text-primary dark:text-blue-400">barcode_scanner</span>
                         Auto-Scanner F2
@@ -50,7 +55,7 @@
 
         <!-- Product Card Grid (SSR Pre-rendered + Dynamic Filter via PosEngine) -->
         <h2 class="sr-only" id="catalogHeading">Daftar Produk Kasir</h2>
-        <div id="catalogGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-space-md min-h-[500px]" aria-labelledby="catalogHeading" data-ssr="1">
+        <div id="catalogGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-space-md min-h-[500px] pb-28 lg:pb-0" aria-labelledby="catalogHeading" data-ssr="1">
             @forelse ($products as $p)
                 @php
                     $isOutOfStock = $p->stock <= 0;
@@ -107,9 +112,9 @@
         </div>
     </div>
 
-    <!-- RIGHT DEDICATED CART & ORDER PANEL -->
-    <aside class="w-full relative h-full" aria-label="Panel Keranjang Kasir">
-        <div class="cart-sticky-panel bg-surface-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 lg:p-space-lg shadow-sm border border-border-subtle dark:border-slate-800 flex flex-col gap-space-md sticky top-[70px] max-h-[calc(100vh-85px)] overflow-y-auto">
+    <!-- RIGHT DEDICATED CART & ORDER PANEL (Top on Mobile, Right Sticky on Desktop) -->
+    <aside id="posCartPanel" class="w-full relative lg:h-full order-1 lg:order-2 scroll-mt-20" aria-label="Panel Keranjang Kasir">
+        <div class="cart-sticky-panel bg-surface-white dark:bg-slate-900 rounded-2xl lg:rounded-3xl p-3.5 sm:p-5 lg:p-space-lg shadow-sm border border-border-subtle dark:border-slate-800 flex flex-col gap-3 lg:gap-space-md lg:sticky lg:top-[70px] lg:max-h-[calc(100vh-85px)] lg:overflow-y-auto">
             <!-- Order Header -->
             <div class="flex items-center justify-between pb-2 border-b border-border-subtle dark:border-slate-800">
                 <div>
@@ -124,10 +129,16 @@
 
             <!-- Customer Type / Account Selector -->
             <div class="bg-slate-50 dark:bg-slate-900/60 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col gap-2 shadow-2xs">
-                <label for="customerSelect" class="flex items-center gap-1.5 cursor-pointer">
-                    <span class="material-symbols-outlined text-[16px] text-slate-600 dark:text-slate-400 select-none" aria-hidden="true">person</span>
-                    <span class="text-[10px] uppercase font-bold tracking-wider text-slate-700 dark:text-slate-300 select-none">Identitas Pembeli</span>
-                </label>
+                <div class="flex items-center justify-between">
+                    <label for="customerSelect" class="flex items-center gap-1.5 cursor-pointer">
+                        <span class="material-symbols-outlined text-[16px] text-slate-600 dark:text-slate-400 select-none" aria-hidden="true">person</span>
+                        <span class="text-[10px] uppercase font-bold tracking-wider text-slate-700 dark:text-slate-300 select-none">Identitas Pembeli</span>
+                    </label>
+                    <button type="button" onclick="openAddRoleModalQuick()" class="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-0.5 cursor-pointer transition-colors" title="Daftarkan Pelanggan Baru">
+                        <span class="material-symbols-outlined text-[15px]">person_add</span>
+                        <span>+ Pelanggan</span>
+                    </button>
+                </div>
                 <div class="relative">
                     <select id="customerSelect" aria-label="Identitas Pembeli" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-xl py-2 pl-3 pr-8 text-xs font-semibold text-slate-800 dark:text-slate-100 appearance-none cursor-pointer focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-slate-300 dark:hover:border-slate-600 transition-all shadow-xs">
                         <option value="">Pelanggan Umum (Walk-in / Tunai &amp; QRIS)</option>
@@ -145,7 +156,7 @@
             </div>
 
             <!-- Cart Items List (Rendered dynamically by PosEngine) -->
-            <div id="cartItemsList" class="flex flex-col gap-2.5 max-h-[340px] min-h-[120px] overflow-y-auto pr-1">
+            <div id="cartItemsList" class="flex flex-col gap-2.5 max-h-[220px] lg:max-h-[340px] min-h-[84px] lg:min-h-[120px] overflow-y-auto pr-1">
                 <div class="p-6 text-center bg-background-canvas dark:bg-slate-800/50 rounded-2xl border border-dashed border-border-subtle dark:border-slate-800">
                     <span class="material-symbols-outlined text-[32px] text-text-muted dark:text-slate-400 mb-1" aria-hidden="true">shopping_basket</span>
                     <div class="font-bold text-xs text-text-main dark:text-white">Keranjang Belanja Kosong</div>
@@ -201,14 +212,14 @@
             <button type="button" class="modal-close-btn p-1.5 rounded-lg hover:bg-background-canvas text-text-muted hover:text-text-main transition-colors" onclick="closeModal('paymentModal')" aria-label="Tutup Dialog Pembayaran">&times;</button>
         </div>
         <div class="modal-body flex flex-col gap-4">
-            <!-- Total Banner: Elegant Dark Navy Display -->
-            <div class="bg-slate-900 dark:bg-slate-950 p-4 rounded-2xl flex items-center justify-between border border-slate-800 shadow-sm text-white">
+            <!-- Total Banner -->
+            <div class="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl flex items-center justify-between border border-slate-200/90 dark:border-slate-800 shadow-2xs text-text-main dark:text-white transition-colors">
                 <div class="flex flex-col">
-                    <span class="text-[11px] font-semibold tracking-wider uppercase text-slate-400">Total Tagihan Kasir</span>
-                    <span class="text-[11px] text-slate-400 mt-0.5">Bebas PPN Sembako 0% • Termasuk diskon grosir</span>
+                    <span class="text-[11px] font-bold tracking-wider uppercase text-text-muted dark:text-slate-400">Total Tagihan Kasir</span>
+                    <span class="text-[11px] text-text-muted dark:text-slate-400 mt-0.5">Bebas PPN Sembako 0% • Termasuk diskon grosir</span>
                 </div>
                 <div class="text-right">
-                    <span id="modalGrandTotalDisplay" class="font-mono font-extrabold text-2xl sm:text-3xl text-emerald-400 tracking-tight">Rp 0</span>
+                    <span id="modalGrandTotalDisplay" class="font-mono font-extrabold text-2xl sm:text-3xl text-emerald-600 dark:text-emerald-400 tracking-tight">Rp 0</span>
                 </div>
             </div>
 
@@ -251,7 +262,7 @@
                 <div class="flex flex-col gap-1.5">
                     <span class="text-[11px] font-semibold text-text-muted">Pilihan Cepat Nominal:</span>
                     <div class="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
-                        <button type="button" class="py-1.5 px-2 rounded-xl bg-primary text-white hover:bg-primary-hover text-[11px] font-bold shadow-xs transition-all cursor-pointer text-center" onclick="posApp.setQuickCash('pas')">Uang Pas</button>
+                        <button type="button" class="py-1.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-xs transition-all cursor-pointer text-center" onclick="posApp.setQuickCash('pas')">Uang Pas</button>
                         <button type="button" class="py-1.5 px-2 rounded-xl bg-surface-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-border-subtle dark:border-slate-700 text-[11px] font-bold text-text-main dark:text-white transition-all cursor-pointer text-center font-mono" onclick="posApp.setQuickCash(50000)">50rb</button>
                         <button type="button" class="py-1.5 px-2 rounded-xl bg-surface-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-border-subtle dark:border-slate-700 text-[11px] font-bold text-text-main dark:text-white transition-all cursor-pointer text-center font-mono" onclick="posApp.setQuickCash(100000)">100rb</button>
                         <button type="button" class="py-1.5 px-2 rounded-xl bg-surface-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-border-subtle dark:border-slate-700 text-[11px] font-bold text-text-main dark:text-white transition-all cursor-pointer text-center font-mono" onclick="posApp.setQuickCash(200000)">200rb</button>
@@ -343,7 +354,7 @@
         </div>
         <div class="modal-footer flex items-center justify-between">
             <button type="button" class="px-4 py-2.5 rounded-xl bg-surface-white dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-xs font-bold text-text-muted hover:text-text-main transition-colors cursor-pointer" onclick="closeModal('paymentModal')">Batal</button>
-            <button type="button" id="confirmPayBtn" class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-xs shadow-sm hover:shadow transition-all flex items-center gap-2 cursor-pointer" onclick="posApp.submitCheckout()">
+            <button type="button" id="confirmPayBtn" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm hover:shadow transition-all flex items-center gap-2 cursor-pointer" onclick="posApp.submitCheckout()">
                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">verified</span>
                 <span>Konfirmasi &amp; Selesaikan Transaksi</span>
             </button>
@@ -352,6 +363,26 @@
 </div>
 
 @include('components.thermal-receipt')
+
+<!-- Mobile Sticky Bottom Cart Dock Bar (Visible when scrolled past cart on mobile/tablet) -->
+<div id="mobileCartFloatWrap" class="fixed bottom-0 inset-x-0 z-40 lg:hidden transform transition-all duration-200 ease-out translate-y-full opacity-0 pointer-events-none">
+    <div class="bg-surface-white dark:bg-slate-900 border-t border-border-subtle dark:border-slate-800 px-4 py-2.5 shadow-xl flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+            <div class="relative flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-[24px] text-primary dark:text-blue-400">shopping_cart</span>
+                <span id="mobileCartFloatBadge" class="absolute -top-1.5 -right-2 text-[10px] font-mono tabular-nums font-extrabold px-1.5 py-0.2 rounded-full bg-blue-600 text-white min-w-[18px] text-center shadow-xs">0</span>
+            </div>
+            <div class="min-w-0">
+                <div class="text-[10px] uppercase font-bold tracking-wider text-text-muted dark:text-slate-400 leading-none">Total Belanja</div>
+                <div id="mobileCartFloatTotal" class="font-mono tabular-nums font-extrabold text-base text-slate-900 dark:text-white leading-tight mt-0.5 truncate">Rp 0</div>
+            </div>
+        </div>
+        <button type="button" onclick="posApp && posApp.scrollToCart()" class="min-h-[44px] px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer shrink-0" aria-label="Ke Keranjang Kasir">
+            <span>Ke Keranjang</span>
+            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_upward</span>
+        </button>
+    </div>
+</div>
 
 @endsection
 

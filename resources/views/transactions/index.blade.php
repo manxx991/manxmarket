@@ -154,7 +154,7 @@
                                         <span class="material-symbols-outlined text-[15px]">print</span>
                                         Struk
                                     </button>
-                                    @if($t->payment_status !== 'void')
+                                    @if(Auth::user()->role === 'owner' && $t->payment_status !== 'void')
                                         <button type="button" class="px-2 py-1 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 text-xs font-bold text-red-700 dark:text-red-400 flex items-center gap-1 cursor-pointer" onclick="openVoidDialog({{ $t->id }}, '{{ $t->invoice_number }}')" title="Batalkan Nota (Void)">
                                             <span class="material-symbols-outlined text-[15px]">cancel</span>
                                             Void
@@ -179,6 +179,7 @@
     </div>
 </div>
 
+@if(Auth::user()->role === 'owner')
 <!-- Modal Void Transaksi -->
 <div id="voidModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="voidModalTitle">
     <div class="modal-content" style="max-width: 440px;">
@@ -211,6 +212,7 @@
         </form>
     </div>
 </div>
+@endif
 
 @include('components.thermal-receipt')
 
@@ -234,6 +236,7 @@ async function openReprintModal(id) {
     }
 }
 
+@if(Auth::user()->role === 'owner')
 function openVoidDialog(id, invoiceNumber) {
     document.getElementById('voidTransactionId').value = id;
     document.getElementById('voidInvoiceDisplay').value = invoiceNumber;
@@ -279,5 +282,6 @@ async function handleVoidSubmit(e) {
         btn.textContent = 'Eksekusi VOID & Restok';
     }
 }
+@endif
 </script>
 @endpush

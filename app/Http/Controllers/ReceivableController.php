@@ -75,6 +75,11 @@ class ReceivableController extends Controller
             return response()->json(['success' => false, 'message' => 'Data piutang tidak ditemukan.'], 404);
         }
 
+        $user = Auth::user();
+        if ($user->role === 'pembeli' && (int)$rec->customer_id !== (int)$user->id) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak. Anda tidak berhak melihat riwayat piutang ini.'], 403);
+        }
+
         $payments = $rec->payments->map(function ($p) {
             return [
                 'id' => $p->id,
@@ -90,14 +95,19 @@ class ReceivableController extends Controller
             ];
         });
 
+        $paymentsSum = (float)$rec->payments->sum('amount_paid');
+        $downPayment = max(0, (float)$rec->total_paid - $paymentsSum);
+
         return response()->json([
             'success' => true,
             'receivable' => [
                 'id' => $rec->id,
                 'invoice_number' => $rec->transaction->invoice_number ?? '-',
+                'transaction_date' => $rec->transaction && $rec->transaction->transaction_date ? $rec->transaction->transaction_date->format('d/m/Y H:i') : '-',
                 'customer_name' => $rec->customer->name ?? '-',
                 'phone' => $rec->customer->phone ?? '-',
                 'total_debt' => (float)$rec->total_debt,
+                'down_payment' => $downPayment,
                 'total_paid' => (float)$rec->total_paid,
                 'remaining_debt' => (float)$rec->remaining_debt,
                 'due_date' => $rec->due_date ? $rec->due_date->format('d/m/Y') : '-',

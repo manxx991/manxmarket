@@ -109,8 +109,8 @@ class TransactionController extends Controller
     public function void(Request $request, VoidService $voidService)
     {
         $user = Auth::user();
-        if (!in_array($user->role, ['owner', 'kasir'], true)) {
-            return response()->json(['success' => false, 'message' => 'Hanya Kasir atau Owner yang memiliki hak akses pembatalan (void).'], 403);
+        if ($user->role !== 'owner') {
+            return response()->json(['success' => false, 'message' => 'Hanya Owner yang memiliki hak akses pembatalan (void).'], 403);
         }
 
         $transactionId = (int)$request->input('transaction_id');

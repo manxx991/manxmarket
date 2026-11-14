@@ -4,7 +4,7 @@
         <div class="modal-header">
             <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-primary text-[24px]" aria-hidden="true">person_add</span>
-                <h2 class="modal-title font-bold text-sm text-text-main dark:text-white" id="quickAddRoleTitle">Tambah Akun / Role Baru</h2>
+                <h2 class="modal-title font-bold text-sm text-text-main dark:text-white" id="quickAddRoleTitle">{{ Auth::user()->role === 'owner' ? 'Tambah Akun / Role Baru' : 'Daftarkan Pelanggan Baru' }}</h2>
             </div>
             <button type="button" class="modal-close-btn" onclick="closeModal('quickAddRoleModal')" aria-label="Tutup Dialog">&times;</button>
         </div>
@@ -13,25 +13,25 @@
                 <div class="bg-background-canvas dark:bg-slate-800 p-2.5 rounded-xl border border-border-subtle dark:border-slate-700 text-xs text-text-muted dark:text-slate-300">
                     {{ Auth::user()->role === 'owner' 
                         ? 'Sebagai Owner, Anda dapat menambahkan Role Kasir, Pembeli, Gudang, atau Owner.' 
-                        : 'Sebagai Kasir, Anda dapat mendaftarkan Role Kasir (rekan shift) dan Role Pembeli (pelanggan grosir).' }}
+                        : 'Sebagai Kasir, Anda hanya dapat mendaftarkan Pelanggan Baru (Pembeli). Plafon kredit kasbon awal ditetapkan Rp 0 oleh server.' }}
                 </div>
 
+                @if(Auth::user()->role === 'owner')
                 <div class="form-group">
                     <label class="form-label" for="quickRoleSelect">Pilih Role Akses *</label>
                     <div class="relative">
                         <select id="quickRoleSelect" name="role" class="form-control pr-8 appearance-none cursor-pointer text-xs" required onchange="handleQuickRoleChange(this.value)">
-                            @if(Auth::user()->role === 'owner')
-                                <option value="owner">Role Owner (Akses Penuh)</option>
-                            @endif
-                            <option value="kasir" selected>Role Kasir (POS, Pembayaran &amp; Role)</option>
-                            <option value="pembeli">Role Pembeli (Pelanggan Grosir / Beli Tempo)</option>
-                            @if(Auth::user()->role === 'owner')
-                                <option value="gudang">Role Gudang (Stok &amp; Opname)</option>
-                            @endif
+                            <option value="owner">Role Owner (Akses Penuh)</option>
+                            <option value="kasir">Role Kasir (POS &amp; Pembayaran)</option>
+                            <option value="pembeli" selected>Role Pembeli (Pelanggan Grosir / Beli Tempo)</option>
+                            <option value="gudang">Role Gudang (Stok &amp; Opname)</option>
                         </select>
                         <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none text-[18px]">unfold_more</span>
                     </div>
                 </div>
+                @else
+                    <input type="hidden" name="role" value="pembeli">
+                @endif
 
                 <div class="form-group">
                     <label class="form-label" for="quickName">Nama Lengkap / Nama Toko Pelanggan *</label>
@@ -54,14 +54,18 @@
                     <input type="text" id="quickPhone" name="phone" class="form-control font-mono" placeholder="08xxxxxxxxxx">
                 </div>
 
-                <div class="form-group" id="quickCreditLimitGroup" style="display: none;">
-                    <label class="form-label" for="quickCreditLimit">Plafon Kredit Belanja Tempo (Rp)</label>
-                    <input type="number" id="quickCreditLimit" name="credit_limit" class="form-control font-mono" value="0" step="50000">
-                </div>
+                @if(Auth::user()->role === 'owner')
+                    <div class="form-group" id="quickCreditLimitGroup" style="display: none;">
+                        <label class="form-label" for="quickCreditLimit">Plafon Kredit Belanja Tempo (Rp)</label>
+                        <input type="number" id="quickCreditLimit" name="credit_limit" class="form-control font-mono" value="0" step="50000">
+                    </div>
+                @else
+                    <input type="hidden" name="credit_limit" value="0">
+                @endif
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('quickAddRoleModal')">Batal</button>
-                <button type="submit" id="quickAddRoleSubmitBtn" class="btn btn-primary">Simpan Role Baru</button>
+                <button type="submit" id="quickAddRoleSubmitBtn" class="btn btn-primary">{{ Auth::user()->role === 'owner' ? 'Simpan Role Baru' : 'Daftarkan Pelanggan' }}</button>
             </div>
         </form>
     </div>
@@ -100,9 +104,10 @@ async function handleQuickAddRole(e) {
     submitBtn.textContent = 'Menyimpan...';
 
     const csrf = window.csrfToken || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
+    const registerUrl = '{{ Auth::user()->role === "owner" ? route("roles.store") : route("customers.register") }}';
 
     try {
-        const resp = await fetch('{{ route("roles.store") }}', {
+        const resp = await fetch(registerUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

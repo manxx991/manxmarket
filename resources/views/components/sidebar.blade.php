@@ -89,25 +89,23 @@ $roleBadges = [
                 @endif
             @endif
 
-            <!-- SECTION 3: Sistem & Hak Akses -->
-            @if(in_array($role, ['owner', 'kasir']))
+            <!-- SECTION 3: Sistem & Hak Akses (Khusus Owner) -->
+            @if($role === 'owner')
                 <li class="sidebar-section-title mt-2">Sistem &amp; Hak Akses</li>
 
                 <li class="sidebar-item {{ str_starts_with($route, 'roles') ? 'active' : '' }}">
                     <a href="{{ route('roles.index') }}" @if(str_starts_with($route, 'roles')) aria-current="page" @endif class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors">
                         <span class="material-symbols-outlined text-[20px] text-emerald-600 dark:text-emerald-500" aria-hidden="true">manage_accounts</span>
-                        <span>{{ $role === 'owner' ? 'Manajemen Role & User' : 'Daftar Kasir & Pelanggan' }}</span>
+                        <span>Manajemen Role &amp; User</span>
                     </a>
                 </li>
 
-                @if($role === 'owner')
-                    <li class="sidebar-item {{ str_starts_with($route, 'settings') ? 'active' : '' }}">
-                        <a href="{{ route('settings.index') }}" @if(str_starts_with($route, 'settings')) aria-current="page" @endif class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors">
-                            <span class="material-symbols-outlined text-[20px] text-slate-600 dark:text-slate-400" aria-hidden="true">tune</span>
-                            <span>Metode Pembayaran &amp; Toko</span>
-                        </a>
-                    </li>
-                @endif
+                <li class="sidebar-item {{ str_starts_with($route, 'settings') ? 'active' : '' }}">
+                    <a href="{{ route('settings.index') }}" @if(str_starts_with($route, 'settings')) aria-current="page" @endif class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors">
+                        <span class="material-symbols-outlined text-[20px] text-slate-600 dark:text-slate-400" aria-hidden="true">tune</span>
+                        <span>Metode Pembayaran &amp; Toko</span>
+                    </a>
+                </li>
             @endif
         </ul>
     </nav>

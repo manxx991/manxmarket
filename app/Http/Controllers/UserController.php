@@ -13,16 +13,15 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $currentUser = Auth::user();
-        $userRole = $currentUser->role;
+        if ($currentUser->role !== 'owner') {
+            abort(403, 'Akses terbatas untuk Owner.');
+        }
 
+        $userRole = 'owner';
         $filterRole = $request->input('role', 'all');
         $search = trim($request->input('search', ''));
 
         $query = User::query();
-
-        if ($userRole === 'kasir') {
-            $query->whereIn('role', ['kasir', 'pembeli']);
-        }
 
         if ($filterRole !== 'all') {
             $query->where('role', $filterRole);
@@ -41,11 +40,7 @@ class UserController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $statsBase = ($userRole === 'kasir')
-            ? User::whereIn('role', ['kasir', 'pembeli'])
-            : User::query();
-
-        $statsRows = (clone $statsBase)
+        $statsRows = User::query()
             ->select('role', \DB::raw('COUNT(*) as count'))
             ->groupBy('role')
             ->pluck('count', 'role')
@@ -57,10 +52,11 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $currentUser = Auth::user();
-        $userRole = $currentUser->role;
-
-        if (!in_array($userRole, ['owner', 'kasir'], true)) {
-            return response()->json(['success' => false, 'message' => 'Hanya Owner dan Kasir yang memiliki wewenang.'], 403);
+        if ($currentUser->role !== 'owner') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya Owner yang memiliki wewenang mengelola role staf.'
+            ], 403);
         }
 
         $validated = $request->validate([
@@ -72,16 +68,9 @@ class UserController extends Controller
             'credit_limit' => 'nullable|numeric|min:0',
         ]);
 
-        $allowedRolesToCreate = ($userRole === 'owner')
-            ? ['owner', 'kasir', 'gudang', 'pembeli']
-            : ['kasir', 'pembeli'];
-
-        if (!in_array($validated['role'], $allowedRolesToCreate, true)) {
-            return response()->json([
-                'success' => false,
-                'message' => ($userRole === 'kasir') ? 'Kasir hanya diizinkan menambahkan role Kasir dan Pembeli.' : 'Role yang dipilih tidak valid.'
-            ], 403);
-        }
+        $creditLimit = ($validated['role'] === 'pembeli')
+            ? (float)($validated['credit_limit'] ?? 0)
+            : 0.00;
 
         $user = User::create([
             'name' => trim($validated['name']),
@@ -89,7 +78,7 @@ class UserController extends Controller
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
             'phone' => trim($validated['phone'] ?? ''),
-            'credit_limit' => (float)($validated['credit_limit'] ?? 0),
+            'credit_limit' => $creditLimit,
             'is_active' => 1,
             'created_at' => now(),
         ]);
@@ -97,6 +86,53 @@ class UserController extends Controller
         return response()->json([
             'success' => true,
             'message' => "Pengguna baru dengan role [{$user->role}] berhasil ditambahkan.",
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'username' => $user->username,
+                'role' => $user->role,
+                'phone' => $user->phone,
+                'credit_limit' => $user->credit_limit,
+            ]
+        ]);
+    }
+
+    /**
+     * Endpoint khusus Kasir mendaftarkan Pelanggan Baru (Pembeli).
+     * Server memaksakan role 'pembeli' dan credit_limit 0 secara mutlak.
+     */
+    public function registerCustomer(Request $request)
+    {
+        $currentUser = Auth::user();
+        if (!in_array($currentUser->role, ['owner', 'kasir'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya Kasir dan Owner yang berwenang mendaftarkan pelanggan.'
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:150',
+            'username' => 'required|string|min:3|max:30|regex:/^[a-z0-9_.-]+$/|unique:users,username',
+            'password' => 'required|string|min:6',
+            'phone' => 'nullable|string|max:30',
+        ]);
+
+        // Aturan ketat server: role dipaksa 'pembeli', credit_limit dipaksa 0.00
+        $user = User::create([
+            'name' => trim($validated['name']),
+            'username' => strtolower(trim($validated['username'])),
+            'password' => Hash::make($validated['password']),
+            'role' => 'pembeli',
+            'phone' => trim($validated['phone'] ?? ''),
+            'credit_limit' => 0.00,
+            'is_active' => 1,
+            'created_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pelanggan baru berhasil didaftarkan.',
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,

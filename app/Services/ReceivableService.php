@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Receivable;
 use App\Models\ReceivablePayment;
+use App\Models\Transaction;
 use App\Models\User;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -76,6 +77,21 @@ class ReceivableService
                 'remaining_debt' => max(0, $newRemainingDebt),
                 'status' => $newStatus,
             ]);
+
+            // Sinkronisasi status nota transaksi kasir jika cicilan telah melunasi piutang
+            $trans = Transaction::where('id', $rec->transaction_id)->first();
+            if ($trans) {
+                if ($newStatus === 'lunas') {
+                    $trans->update([
+                        'payment_status' => 'lunas',
+                        'paid_amount' => $trans->grand_total,
+                    ]);
+                } else {
+                    $trans->update([
+                        'paid_amount' => min((float)$trans->grand_total, (float)$trans->paid_amount + $amountPaid),
+                    ]);
+                }
+            }
 
             return [
                 'success' => true,

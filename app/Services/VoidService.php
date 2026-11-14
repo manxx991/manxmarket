@@ -14,6 +14,10 @@ class VoidService
 {
     public function executeVoid(int $transactionId, string $voidReason, User $voidUser): array
     {
+        if ($voidUser->role !== 'owner') {
+            throw new Exception("Hanya Owner yang berwenang mengeksekusi pembatalan nota (VOID).");
+        }
+
         $voidReason = trim($voidReason);
         if (strlen($voidReason) < 5) {
             throw new Exception("Alasan pembatalan (void) wajib diisi dengan jelas (minimal 5 karakter).");

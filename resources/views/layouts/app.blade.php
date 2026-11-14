@@ -96,6 +96,7 @@
 <script>
 window.csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 window.appUrl = "{{ url('/') }}";
+window.currentUserRole = "{{ Auth::check() ? Auth::user()->role : '' }}";
 
 function toggleSidebar(open) {
     const sidebar = document.getElementById('appSidebar');
@@ -170,7 +171,9 @@ function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.remove('active');
-        modal.classList.add('hidden');
+        if (modal.classList.contains('modal-backdrop')) {
+            modal.classList.add('hidden');
+        }
     }
 }
 
@@ -185,7 +188,9 @@ document.addEventListener('keydown', function(e) {
         }
         document.querySelectorAll('.modal-overlay.active, .modal-backdrop:not(.hidden)').forEach(m => {
             m.classList.remove('active');
-            m.classList.add('hidden');
+            if (m.classList.contains('modal-backdrop')) {
+                m.classList.add('hidden');
+            }
         });
     }
 });

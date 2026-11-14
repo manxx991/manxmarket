@@ -22,6 +22,7 @@ function toggleSidebar(open) {
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
+        modal.classList.remove('hidden');
         modal.classList.add('active');
         const firstInput = modal.querySelector('input:not([type=hidden]), select, textarea, button:not(.modal-close-btn)');
         if (firstInput) {
@@ -34,6 +35,9 @@ function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.remove('active');
+        if (modal.classList.contains('modal-backdrop')) {
+            modal.classList.add('hidden');
+        }
     }
 }
 
@@ -46,7 +50,9 @@ document.addEventListener('keydown', function(e) {
         const activeModals = document.querySelectorAll('.modal-overlay.active, .modal-backdrop:not(.hidden)');
         activeModals.forEach(m => {
             m.classList.remove('active');
-            m.classList.add('hidden');
+            if (m.classList.contains('modal-backdrop')) {
+                m.classList.add('hidden');
+            }
         });
         const sidebar = document.getElementById('appSidebar');
         if (sidebar && sidebar.classList.contains('open')) {
@@ -80,6 +86,13 @@ function updateThemeUI(isDark) {
 document.addEventListener('DOMContentLoaded', function() {
     const isDark = document.documentElement.classList.contains('dark');
     updateThemeUI(isDark);
+
+    // Otorisasi UI: Sembunyikan kontrol pembatalan nota (VOID) dari staf kasir
+    if (window.currentUserRole && window.currentUserRole !== 'owner') {
+        document.querySelectorAll('.owner-only, [data-role-required="owner"], .btn-void, #voidModal, [onclick*="openVoidDialog"]').forEach(el => {
+            el.remove();
+        });
+    }
 });
 
 // Shortcut F9 to Toggle Theme
@@ -974,11 +987,41 @@ class PosEngine {
 
         this.initDoms();
         this.bindEvents();
+        this.initMobileCartObserver();
         if (!this.catalogGrid || !this.catalogGrid.querySelector('article')) {
             this.renderCatalog();
         }
         if (!this.cartItemsList || !this.cartItemsList.children.length) {
             this.renderCart();
+        }
+    }
+
+    initMobileCartObserver() {
+        const panel = document.getElementById('posCartPanel');
+        const floatWrap = document.getElementById('mobileCartFloatWrap');
+        if (!panel || !floatWrap) return;
+
+        const updateVisibility = () => {
+            const r = panel.getBoundingClientRect();
+            if (r.bottom < 80) {
+                floatWrap.classList.remove('translate-y-full', 'translate-y-2', 'opacity-0', 'pointer-events-none');
+                floatWrap.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
+            } else {
+                floatWrap.classList.add('translate-y-full', 'opacity-0', 'pointer-events-none');
+                floatWrap.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+            }
+        };
+
+        window.addEventListener('scroll', updateVisibility, { passive: true });
+        updateVisibility();
+    }
+
+    scrollToCart() {
+        const panel = document.getElementById('posCartPanel');
+        if (panel) {
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     }
 
@@ -1328,6 +1371,12 @@ class PosEngine {
         if (this.cartCountBadge) {
             this.cartCountBadge.textContent = calc.totalQty;
         }
+        const catCartBadge = document.getElementById('catalogCartCount');
+        if (catCartBadge) catCartBadge.textContent = calc.totalQty;
+        const floatBadge = document.getElementById('mobileCartFloatBadge');
+        if (floatBadge) floatBadge.textContent = calc.totalQty;
+        const floatTotal = document.getElementById('mobileCartFloatTotal');
+        if (floatTotal) floatTotal.textContent = formatRp(calc.grandTotal);
 
         if (calc.items.length === 0) {
             this.cartItemsList.innerHTML = `

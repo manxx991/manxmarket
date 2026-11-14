@@ -45,14 +45,12 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
         Route::get('/api/transactions/{id}', [TransactionController::class, 'detail'])->name('transactions.detail');
-        Route::post('/api/transactions/void', [TransactionController::class, 'void'])->name('transactions.void');
 
         Route::get('/receivables', [ReceivableController::class, 'index'])->name('receivables.index');
         Route::post('/api/receivables/pay', [ReceivableController::class, 'pay'])->name('receivables.pay');
-        Route::get('/api/receivables/{id}/history', [ReceivableController::class, 'history'])->name('receivables.history');
 
-        Route::get('/roles', [UserController::class, 'index'])->name('roles.index');
-        Route::post('/api/roles', [UserController::class, 'store'])->name('roles.store');
+        // Pendaftaran Pelanggan Baru oleh Kasir (Khusus Pembeli, Limit Kasbon 0)
+        Route::post('/api/customers/register', [UserController::class, 'registerCustomer'])->name('customers.register');
     });
 
     // Gudang & Inventaris (Owner & Gudang)
@@ -69,10 +67,20 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:owner')->group(function () {
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/export-csv', [ReportController::class, 'exportCsv'])->name('reports.exportCsv');
+        Route::post('/api/transactions/void', [TransactionController::class, 'void'])->name('transactions.void');
+
+        // Manajemen Akun & Hak Akses (Eksklusif Owner)
+        Route::get('/roles', [UserController::class, 'index'])->name('roles.index');
+        Route::post('/api/roles', [UserController::class, 'store'])->name('roles.store');
         Route::post('/api/roles/{id}/toggle-active', [UserController::class, 'toggleActive'])->name('roles.toggleActive');
         Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
     });
+
+    // Riwayat Cicilan Piutang (Owner, Kasir, Pembeli)
+    Route::get('/api/receivables/{id}/history', [ReceivableController::class, 'history'])
+        ->middleware('role:owner,kasir,pembeli')
+        ->name('receivables.history');
 
     // Portal Pelanggan Grosir (Pembeli & Owner)
     Route::middleware('role:owner,pembeli')->group(function () {

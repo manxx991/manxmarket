@@ -102,7 +102,7 @@
                             $isOverdue = $r->status === 'belum_lunas' && $r->due_date && \Carbon\Carbon::parse($r->due_date)->isPast();
                         @endphp
                         <tr class="hover:bg-background-subtle dark:hover:bg-slate-800/40 transition-colors">
-                            <td class="p-3 font-mono font-bold text-text-main dark:text-white">
+                            <td class="p-3 font-mono font-bold text-text-main dark:text-white whitespace-nowrap">
                                 {{ $r->transaction->invoice_number ?? '-' }}
                             </td>
                             <td class="p-3">
@@ -115,9 +115,9 @@
                                     <span class="block text-[10px] text-red-600 dark:text-red-400">Terlambat!</span>
                                 @endif
                             </td>
-                            <td class="p-3 text-right font-mono font-semibold text-text-main dark:text-white">{{ formatRupiah($r->total_debt) }}</td>
-                            <td class="p-3 text-right font-mono text-emerald-700 dark:text-emerald-400">{{ formatRupiah($r->total_paid) }}</td>
-                            <td class="p-3 text-right font-mono font-bold {{ $r->remaining_debt > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-text-muted' }}">{{ formatRupiah($r->remaining_debt) }}</td>
+                            <td class="p-3 text-right font-mono tabular-nums font-semibold text-text-main dark:text-white whitespace-nowrap">{{ formatRupiah($r->total_debt) }}</td>
+                            <td class="p-3 text-right font-mono tabular-nums text-emerald-700 dark:text-emerald-400 whitespace-nowrap">{{ formatRupiah($r->total_paid) }}</td>
+                            <td class="p-3 text-right font-mono tabular-nums font-bold whitespace-nowrap {{ $r->remaining_debt > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-text-muted' }}">{{ formatRupiah($r->remaining_debt) }}</td>
                             <td class="p-3 text-center">
                                 @if($r->status === 'lunas')
                                     <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/40">LUNAS</span>
@@ -249,17 +249,39 @@
     </div>
 </div>
 
-<!-- Modal: Riwayat Pembayaran -->
-<div id="historyModal" class="modal-backdrop hidden fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-    <div class="bg-surface-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-xl border border-border-subtle dark:border-slate-800">
-        <div class="flex items-center justify-between pb-3 border-b border-border-subtle dark:border-slate-800">
-            <h2 class="font-bold text-base text-text-main dark:text-white" id="histModalTitle">Riwayat Cicilan</h2>
-            <button type="button" onclick="closeModal('historyModal')" class="text-text-muted hover:text-text-main dark:hover:text-white cursor-pointer">
-                <span class="material-symbols-outlined text-[20px]">close</span>
-            </button>
-        </div>
-        <div id="histModalContent" class="py-4 text-xs max-h-80 overflow-y-auto text-text-main dark:text-slate-200">
-            Memuat riwayat...
+<!-- Drawer: Riwayat Cicilan (Slide-over Sheet) -->
+<div id="historyModal" class="modal-backdrop hidden fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="histModalTitle">
+    <!-- Non-intrusive backdrop scrim -->
+    <div class="fixed inset-0 bg-slate-900/25 dark:bg-black/50 transition-opacity cursor-pointer" onclick="closeModal('historyModal')"></div>
+
+    <div class="fixed inset-y-0 right-0 max-w-full flex pl-4 sm:pl-10 pointer-events-none">
+        <div class="w-screen max-w-md lg:max-w-lg bg-surface-white dark:bg-slate-900 shadow-2xl border-l border-border-subtle dark:border-slate-800 flex flex-col pointer-events-auto transform transition-all">
+            <!-- Header -->
+            <div class="px-5 py-4 border-b border-border-subtle dark:border-slate-800 flex items-center justify-between shrink-0">
+                <div class="min-w-0 pr-3">
+                    <h2 class="font-bold text-sm text-text-main dark:text-white truncate font-mono" id="histModalTitle">Riwayat Cicilan</h2>
+                    <p class="text-[11px] text-text-muted dark:text-slate-400 mt-0.5 truncate" id="histModalSubtitle">Detail angsuran pembayaran piutang kasbon</p>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <span class="hidden sm:inline-block text-[10px] text-text-muted font-mono px-1.5 py-0.5 rounded border border-border-subtle dark:border-slate-800 select-none">ESC</span>
+                    <button type="button" onclick="closeModal('historyModal')" aria-label="Tutup Panel" class="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text-main dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                        <span class="material-symbols-outlined text-[18px]">close</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content Area (Scrollable) -->
+            <div id="histModalContent" class="p-5 overflow-y-auto flex-1 text-xs text-text-main dark:text-slate-200 flex flex-col gap-4">
+                Memuat riwayat...
+            </div>
+
+            <!-- Footer -->
+            <div class="px-5 py-3 border-t border-border-subtle dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/30 flex items-center justify-between shrink-0">
+                <span class="text-[11px] font-mono text-text-muted dark:text-slate-400" id="histModalFooterCount"></span>
+                <button type="button" onclick="closeModal('historyModal')" class="px-3.5 py-1.5 rounded-xl bg-surface-white dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-xs font-semibold text-text-main dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer">
+                    Tutup Panel
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -271,13 +293,6 @@ const QRIS_STATIC_STRING = @json($store['qris_static_string'] ?? '');
 const QRIS_MERCHANT_NAME = @json($store['qris_merchant_name'] ?? 'MANXMARKET POS');
 
 let currentRemainingDebt = 0;
-
-function openModal(id) {
-    document.getElementById(id).classList.remove('hidden');
-}
-function closeModal(id) {
-    document.getElementById(id).classList.add('hidden');
-}
 
 function openPaymentModal(id, invoice, customer, remaining) {
     currentRemainingDebt = Number(remaining);
@@ -406,9 +421,17 @@ function renderRecQris() {
     }
 }
 
+function escHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
 async function openPaymentHistory(id, invoice) {
-    document.getElementById('histModalTitle').textContent = 'Riwayat Cicilan: ' + invoice;
-    document.getElementById('histModalContent').innerHTML = '<div class="text-center py-4 text-text-muted">Memuat...</div>';
+    document.getElementById('histModalTitle').textContent = 'Riwayat Cicilan · ' + (invoice || '-');
+    const subEl = document.getElementById('histModalSubtitle');
+    if (subEl) subEl.textContent = 'Memuat detail pembayaran...';
+    document.getElementById('histModalContent').innerHTML = '<div class="text-center py-12 text-text-muted">Memuat riwayat cicilan...</div>';
+    const footerCount = document.getElementById('histModalFooterCount');
+    if (footerCount) footerCount.textContent = '';
     openModal('historyModal');
 
     try {
@@ -416,24 +439,131 @@ async function openPaymentHistory(id, invoice) {
         const res = await resp.json();
         if (!res.success) throw new Error(res.message);
 
-        if (res.payments.length === 0) {
-            document.getElementById('histModalContent').innerHTML = '<div class="text-center py-4 text-text-muted">Belum ada riwayat cicilan untuk nota ini.</div>';
-            return;
+        const rec = res.receivable || {};
+        const inv = rec.invoice_number || invoice || '-';
+        document.getElementById('histModalTitle').textContent = 'Riwayat Cicilan · ' + inv;
+        if (subEl) {
+            subEl.textContent = `${rec.customer_name || 'Pelanggan'} · Jatuh Tempo ${rec.due_date || '-'}`;
         }
 
-        let html = '<table class="w-full text-left border-collapse text-xs"><thead><tr class="text-text-muted uppercase text-[10px] border-b border-border-subtle"><th class="pb-2">Waktu</th><th class="pb-2">Metode</th><th class="pb-2 text-right">Nominal</th><th class="pb-2">Penerima</th></tr></thead><tbody class="divide-y divide-border-subtle">';
-        res.payments.forEach(p => {
-            html += `<tr>
-                <td class="py-2 text-text-muted font-mono">${p.payment_date}</td>
-                <td class="py-2 uppercase font-semibold text-[10px]">${p.payment_method}</td>
-                <td class="py-2 text-right font-mono font-bold text-emerald-700">Rp ${Number(p.amount_paid).toLocaleString('id-ID')}</td>
-                <td class="py-2 text-text-muted">${p.received_by_name || 'Kasir'}</td>
-            </tr>`;
-        });
-        html += '</tbody></table>';
-        document.getElementById('histModalContent').innerHTML = html;
+        const rem = Number(rec.remaining_debt || 0);
+        const totalDebt = Number(rec.total_debt || 0);
+        const totalPaid = Number(rec.total_paid || 0);
+        const downPayment = Number(rec.down_payment || 0);
+        const isLunas = rec.status === 'lunas' || rem <= 0;
+
+        const statusLabel = isLunas
+            ? '<span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Lunas</span>'
+            : '<span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">Belum Lunas</span>';
+
+        const summaryHtml = `
+            <div class="pb-4 border-b border-border-subtle dark:border-slate-800">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-text-muted dark:text-slate-400">Ringkasan Tagihan</span>
+                    ${statusLabel}
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <span class="text-[11px] text-text-muted dark:text-slate-400 block">Total Faktur</span>
+                        <span class="font-mono tabular-nums font-bold text-text-main dark:text-white text-sm block mt-0.5">Rp ${totalDebt.toLocaleString('id-ID')}</span>
+                    </div>
+                    <div>
+                        <span class="text-[11px] text-text-muted dark:text-slate-400 block">Telah Dibayar</span>
+                        <span class="font-mono tabular-nums font-bold text-text-main dark:text-white text-sm block mt-0.5">Rp ${totalPaid.toLocaleString('id-ID')}</span>
+                    </div>
+                    <div>
+                        <span class="text-[11px] text-text-muted dark:text-slate-400 block">Sisa Piutang</span>
+                        <span class="font-mono tabular-nums font-bold ${isLunas ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'} text-sm block mt-0.5">Rp ${rem.toLocaleString('id-ID')}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        let dpHtml = '';
+        if (downPayment > 0) {
+            dpHtml = `
+                <div class="flex items-center justify-between py-2.5 border-b border-border-subtle dark:border-slate-800 text-xs">
+                    <div>
+                        <span class="font-semibold text-text-main dark:text-white block">Uang Muka (DP Kasir)</span>
+                        <span class="text-[10px] text-text-muted dark:text-slate-400 font-mono">${escHtml(rec.transaction_date || '-')}</span>
+                    </div>
+                    <span class="font-mono tabular-nums font-semibold text-text-main dark:text-white">Rp ${downPayment.toLocaleString('id-ID')}</span>
+                </div>
+            `;
+        }
+
+        let paymentsHtml = '';
+        let totalInstallments = 0;
+
+        if (res.payments && res.payments.length > 0) {
+            let rowsHtml = '';
+            res.payments.forEach(p => {
+                totalInstallments += Number(p.amount_paid || 0);
+                const methodText = (p.payment_method || 'tunai').toUpperCase();
+
+                rowsHtml += `
+                    <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                        <td class="py-2.5 pr-2 font-mono text-text-muted dark:text-slate-400 whitespace-nowrap">
+                            <div class="font-semibold text-text-main dark:text-white text-[11px]">${escHtml(p.payment_number || '-')}</div>
+                            <div class="text-[10px] text-text-muted dark:text-slate-400">${escHtml(p.payment_date)}</div>
+                        </td>
+                        <td class="py-2.5 px-2 text-center whitespace-nowrap">
+                            <span class="font-mono text-[10px] font-semibold uppercase tracking-wide ${p.payment_method === 'qris' ? 'text-blue-700 dark:text-blue-400' : 'text-text-muted dark:text-slate-300'}">${methodText}</span>
+                        </td>
+                        <td class="py-2.5 px-3 text-right font-mono tabular-nums font-bold text-text-main dark:text-white whitespace-nowrap">
+                            Rp ${Number(p.amount_paid).toLocaleString('id-ID')}
+                        </td>
+                        <td class="py-2.5 pl-3 text-left text-text-muted dark:text-slate-300">
+                            <div class="font-medium text-text-main dark:text-slate-200 whitespace-nowrap">${escHtml((p.received_by_name || 'Kasir').replace(/\s*\([^)]*\)\s*$/, ''))}</div>
+                            ${p.notes ? `<div class="text-[10px] text-text-muted dark:text-slate-400 truncate max-w-[150px]" title="${escHtml(p.notes)}">${escHtml(p.notes)}</div>` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            paymentsHtml = `
+                <div class="flex flex-col">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-text-muted dark:text-slate-400">Daftar Angsuran</span>
+                        <span class="text-[10px] font-mono text-text-muted dark:text-slate-400">${res.payments.length} transaksi</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="text-text-muted dark:text-slate-400 uppercase text-[10px] font-bold tracking-wider border-y border-border-subtle dark:border-slate-800">
+                                    <th class="py-2 pr-2">Kuitansi</th>
+                                    <th class="py-2 px-2 text-center">Metode</th>
+                                    <th class="py-2 px-3 text-right">Nominal</th>
+                                    <th class="py-2 pl-3 text-left">Penerima</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border-subtle dark:divide-slate-800">
+                                ${rowsHtml}
+                            </tbody>
+                            <tfoot>
+                                <tr class="border-t border-border-subtle dark:border-slate-800 font-bold">
+                                    <td colspan="2" class="py-2.5 pr-2 text-left text-[11px] text-text-muted dark:text-slate-400">Total Angsuran (${res.payments.length}x)</td>
+                                    <td class="py-2.5 px-3 text-right font-mono tabular-nums font-extrabold text-text-main dark:text-white whitespace-nowrap">Rp ${totalInstallments.toLocaleString('id-ID')}</td>
+                                    <td class="py-2.5 pl-3"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            `;
+            if (footerCount) footerCount.textContent = `${res.payments.length} angsuran tercatat`;
+        } else {
+            paymentsHtml = `
+                <div class="py-8 text-center text-text-muted border-b border-dashed border-border-subtle dark:border-slate-800">
+                    <span class="text-xs">Belum ada angsuran cicilan tercatat untuk nota ini.</span>
+                </div>
+            `;
+            if (footerCount) footerCount.textContent = '0 angsuran';
+        }
+
+        document.getElementById('histModalContent').innerHTML = summaryHtml + dpHtml + paymentsHtml;
     } catch (e) {
-        document.getElementById('histModalContent').innerHTML = '<div class="text-red-600 text-center py-4">Gagal memuat: ' + e.message + '</div>';
+        document.getElementById('histModalContent').innerHTML = '<div class="text-red-600 dark:text-red-400 text-center py-6">Gagal memuat: ' + escHtml(e.message) + '</div>';
     }
 }
 

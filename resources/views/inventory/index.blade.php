@@ -492,19 +492,6 @@
 
 @push('scripts')
 <script>
-function openModal(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.remove('hidden');
-    el.classList.add('active');
-}
-function closeModal(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.remove('active');
-    if (el.classList.contains('modal-backdrop')) el.classList.add('hidden');
-}
-
 function openProductModal() {
     document.getElementById('prodId').value = '';
     document.getElementById('prodSku').value = '';

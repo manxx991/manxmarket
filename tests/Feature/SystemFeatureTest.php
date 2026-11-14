@@ -295,10 +295,70 @@ class SystemFeatureTest extends TestCase
         $this->get('/reports')->assertStatus(403);
         $this->get('/settings')->assertStatus(403);
 
-        // Kasir cannot access reports, settings
+        // Kasir cannot access reports, settings, roles, or void
         $this->actingAs($this->kasir);
         $this->get('/reports')->assertStatus(403);
         $this->get('/settings')->assertStatus(403);
+        $this->get('/roles')->assertStatus(403);
+        $this->postJson('/api/roles', ['name' => 'Bad User'])->assertStatus(403);
+        $this->postJson('/api/transactions/void', ['transaction_id' => 1, 'void_reason' => 'Coba void kasir'])->assertStatus(403);
+    }
+
+    public function test_cashier_customer_registration_enforces_pembeli_and_zero_credit(): void
+    {
+        $this->actingAs($this->kasir);
+
+        $username = 'cust' . rand(10000, 99999);
+        // Kasir attempts to inject role 'owner' and credit_limit 999999999
+        $res = $this->postJson('/api/customers/register', [
+            'name' => 'Pelanggan Uji Kasir',
+            'username' => $username,
+            'password' => 'secret123',
+            'phone' => '08123456789',
+            'role' => 'owner',
+            'credit_limit' => 999999999,
+        ]);
+
+        $res->assertStatus(200);
+        $res->assertJson(['success' => true]);
+
+        $user = User::where('username', $username)->first();
+        $this->assertNotNull($user);
+        // Assert role is strictly 'pembeli' and credit_limit is strictly 0.00
+        $this->assertEquals('pembeli', $user->role);
+        $this->assertEquals(0.00, (float)$user->credit_limit);
+    }
+
+    public function test_owner_exclusive_void_authorization(): void
+    {
+        $product = Product::where('is_active', 1)->where('stock', '>=', 2)->first();
+        $this->actingAs($this->owner);
+
+        // Buat transaksi nota
+        $transRes = $this->postJson('/api/pos/checkout', [
+            'items' => [['id' => $product->id, 'qty' => 1]],
+            'payment_method' => 'tunai',
+            'paid_amount' => (float)$product->retail_price,
+        ]);
+        $transRes->assertStatus(200);
+        $txId = $transRes->json('transaction_id');
+
+        // Kasir dilarang mengeksekusi void
+        $this->actingAs($this->kasir);
+        $voidKasir = $this->postJson('/api/transactions/void', [
+            'transaction_id' => $txId,
+            'void_reason' => 'Kasir coba void nota',
+        ]);
+        $voidKasir->assertStatus(403);
+
+        // Owner diizinkan mengeksekusi void
+        $this->actingAs($this->owner);
+        $voidOwner = $this->postJson('/api/transactions/void', [
+            'transaction_id' => $txId,
+            'void_reason' => 'Pembeli membatalkan pesanan di kasir',
+        ]);
+        $voidOwner->assertStatus(200);
+        $voidOwner->assertJson(['success' => true]);
     }
 
     public function test_stock_opname_physical_stock(): void

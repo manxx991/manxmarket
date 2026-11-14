@@ -27,10 +27,12 @@
             </div>
         </div>
         <div class="flex flex-wrap items-center gap-2.5">
-            <button type="button" onclick="openAddUserModal('kasir')" class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer">
-                <span class="material-symbols-outlined text-[18px]">point_of_sale</span>
-                <span>Tambah Kasir</span>
-            </button>
+            @if($userRole === 'owner')
+                <button type="button" onclick="openAddUserModal('kasir')" class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer">
+                    <span class="material-symbols-outlined text-[18px]">point_of_sale</span>
+                    <span>Tambah Kasir</span>
+                </button>
+            @endif
             <button type="button" onclick="openAddUserModal('pembeli')" class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer">
                 <span class="material-symbols-outlined text-[18px]">person_add</span>
                 <span>Tambah Pembeli</span>
@@ -174,7 +176,7 @@
                             @if($userRole === 'owner')
                                 <td class="p-3.5 text-right">
                                     @if($u->id !== Auth::id())
-                                        <button type="button" id="toggleBtn-{{ $u->id }}" onclick="confirmToggleActive({{ $u->id }}, '{{ addslashes($u->name) }}', '{{ addslashes($u->username) }}', '{{ $u->role }}', {{ $u->is_active ? 1 : 0 }})" class="px-2.5 py-1 rounded-lg border border-border-subtle dark:border-slate-700 bg-surface-white dark:bg-slate-800 hover:bg-background-subtle text-xs transition-colors cursor-pointer {{ $u->is_active ? 'text-text-muted hover:text-red-600 dark:hover:text-red-400' : 'text-emerald-700 dark:text-emerald-400 font-semibold hover:bg-emerald-50 dark:hover:bg-emerald-950/40' }}">
+                                        <button type="button" id="toggleBtn-{{ $u->id }}" data-id="{{ $u->id }}" data-name="{{ $u->name }}" data-username="{{ $u->username }}" data-role="{{ $u->role }}" data-active="{{ $u->is_active ? 1 : 0 }}" onclick="confirmToggleActive(Number(this.dataset.id), this.dataset.name, this.dataset.username, this.dataset.role, Number(this.dataset.active))" class="px-2.5 py-1 rounded-lg border border-border-subtle dark:border-slate-700 bg-surface-white dark:bg-slate-800 hover:bg-background-subtle text-xs transition-colors cursor-pointer {{ $u->is_active ? 'text-text-muted hover:text-red-600 dark:hover:text-red-400' : 'text-emerald-700 dark:text-emerald-400 font-semibold hover:bg-emerald-50 dark:hover:bg-emerald-950/40' }}">
                                             {{ $u->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
                                         </button>
                                     @endif
@@ -242,10 +244,14 @@
                 <label class="font-bold block text-text-main dark:text-white mb-1.5">Nomor WhatsApp / HP</label>
                 <input type="text" id="userPhone" class="w-full px-3.5 py-2.5 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-main dark:text-white font-mono outline-none focus:border-blue-500">
             </div>
-            <div id="plafonContainer" class="hidden">
-                <label class="font-bold block text-text-main dark:text-white mb-1.5">Plafon Kredit Belanja Tempo (Rp)</label>
-                <input type="number" id="userCreditLimit" value="0" step="50000" class="w-full px-3.5 py-2.5 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 font-mono font-bold text-secondary dark:text-blue-400 outline-none focus:border-blue-500">
-            </div>
+            @if($userRole === 'owner')
+                <div id="plafonContainer" class="hidden">
+                    <label class="font-bold block text-text-main dark:text-white mb-1.5">Plafon Kredit Belanja Tempo (Rp)</label>
+                    <input type="number" id="userCreditLimit" value="0" step="50000" class="w-full px-3.5 py-2.5 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 font-mono font-bold text-secondary dark:text-blue-400 outline-none focus:border-blue-500">
+                </div>
+            @else
+                <input type="hidden" id="userCreditLimit" value="0">
+            @endif
             <div class="flex items-center justify-end gap-2 pt-3 border-t border-border-subtle dark:border-slate-800 mt-2">
                 <button type="button" onclick="closeModal('addUserModal')" class="px-4 py-2.5 rounded-xl bg-surface-white dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-muted hover:text-text-main font-semibold cursor-pointer">Batal</button>
                 <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold shadow-xs transition-all cursor-pointer">Simpan Akun</button>
@@ -308,13 +314,6 @@
 
 @push('scripts')
 <script>
-function openModal(id) {
-    document.getElementById(id).classList.remove('hidden');
-}
-function closeModal(id) {
-    document.getElementById(id).classList.add('hidden');
-}
-
 function openAddUserModal(role) {
     document.getElementById('userRoleField').value = role;
     document.getElementById('userName').value = '';
@@ -397,12 +396,12 @@ async function submitAddUser(e) {
 
             tr.innerHTML = `
                 <td class="p-3.5 font-semibold text-text-main dark:text-white flex items-center gap-2">
-                    <span>${res.user.name}</span>
+                    <span>${escapeHtml(res.user.name)}</span>
                     <span class="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-blue-600 text-white font-mono">Baru</span>
                 </td>
-                <td class="p-3.5 font-mono text-text-muted dark:text-slate-400">@${res.user.username}</td>
-                <td class="p-3.5">${roleBadges[res.user.role] || res.user.role.toUpperCase()}</td>
-                <td class="p-3.5 text-text-muted dark:text-slate-400 font-mono">${res.user.phone || '-'}</td>
+                <td class="p-3.5 font-mono text-text-muted dark:text-slate-400">@${escapeHtml(res.user.username)}</td>
+                <td class="p-3.5">${roleBadges[res.user.role] || escapeHtml(res.user.role ? res.user.role.toUpperCase() : '-')}</td>
+                <td class="p-3.5 text-text-muted dark:text-slate-400 font-mono">${escapeHtml(res.user.phone || '-')}</td>
                 <td class="p-3.5 text-right font-mono ${res.user.credit_limit > 0 ? 'font-bold text-secondary dark:text-blue-400' : 'text-text-muted dark:text-slate-500'}">
                     ${creditFormatted}
                 </td>
@@ -411,7 +410,7 @@ async function submitAddUser(e) {
                 </td>
                 ${isOwnerRole ? `
                     <td class="p-3.5 text-right">
-                        <button type="button" id="toggleBtn-${res.user.id}" onclick="confirmToggleActive(${res.user.id}, '${res.user.name.replace(/'/g, "\\'")}', '${res.user.username}', '${res.user.role}', 1)" class="px-2.5 py-1 rounded-lg border border-border-subtle dark:border-slate-700 bg-surface-white dark:bg-slate-800 hover:bg-background-subtle text-xs text-text-muted hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer">
+                        <button type="button" id="toggleBtn-${res.user.id}" data-id="${res.user.id}" data-name="${escapeHtml(res.user.name)}" data-username="${escapeHtml(res.user.username)}" data-role="${escapeHtml(res.user.role)}" data-active="1" onclick="confirmToggleActive(Number(this.dataset.id), this.dataset.name, this.dataset.username, this.dataset.role, Number(this.dataset.active))" class="px-2.5 py-1 rounded-lg border border-border-subtle dark:border-slate-700 bg-surface-white dark:bg-slate-800 hover:bg-background-subtle text-xs text-text-muted hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer">
                             Nonaktifkan
                         </button>
                     </td>
@@ -531,11 +530,12 @@ async function executeToggleActive() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRF-TOKEN': token
             }
         });
         const res = await resp.json();
-        if (!res.success) throw new Error(res.message);
+        if (!resp.ok || !res.success) throw new Error(res.message || 'Gagal mengubah status akun.');
 
         closeModal('confirmToggleActiveModal');
 
@@ -577,7 +577,7 @@ function updateTableRowStatus(userId, name, username, role, newStatus) {
     if (toggleBtn) {
         toggleBtn.textContent = isActive ? 'Nonaktifkan' : 'Aktifkan';
         toggleBtn.className = `px-2.5 py-1 rounded-lg border border-border-subtle dark:border-slate-700 bg-surface-white dark:bg-slate-800 hover:bg-background-subtle text-xs transition-colors cursor-pointer ${isActive ? 'text-text-muted hover:text-red-600 dark:hover:text-red-400' : 'text-emerald-700 dark:text-emerald-400 font-semibold hover:bg-emerald-50 dark:hover:bg-emerald-950/40'}`;
-        toggleBtn.setAttribute('onclick', `confirmToggleActive(${userId}, '${name.replace(/'/g, "\\'")}', '${username.replace(/'/g, "\\'")}', '${role}', ${isActive ? 1 : 0})`);
+        toggleBtn.dataset.active = isActive ? '1' : '0';
     }
 
     // Glow highlight row
