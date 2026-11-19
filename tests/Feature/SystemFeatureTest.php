@@ -237,6 +237,7 @@ class SystemFeatureTest extends TestCase
 
         $res = $this->get('/roles');
         $res->assertStatus(200);
+        $this->assertSame(['owner', 'kasir', 'gudang', 'pembeli'], $res->viewData('users')->getCollection()->pluck('role')->all());
 
         $username = 'testkasir' . rand(100, 999);
         $createRes = $this->postJson('/api/roles', [
