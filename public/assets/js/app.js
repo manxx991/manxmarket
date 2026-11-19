@@ -187,16 +187,30 @@ function showReceiptModal(tx) {
     const storeAddress = store.store_address || 'Pasar Induk Kota Dagang';
     const storePhone = store.store_phone || '0812-8899-7766';
     const footerNotes = store.receipt_footer || 'Terima kasih atas kunjungan Anda.';
+    const receiptStoreName = escapeHtml(storeName);
+    const receiptStoreAddress = escapeHtml(storeAddress);
+    const receiptStorePhone = escapeHtml(storePhone);
+    const receiptFooterNotes = escapeHtml(footerNotes);
+    const receiptInvoiceNumber = escapeHtml(tx.invoice_number);
+    const receiptDate = escapeHtml(tx.date || tx.transaction_date);
+    const receiptCashier = escapeHtml(tx.cashier || tx.cashier_name || 'Kasir');
+    const receiptCustomer = escapeHtml(tx.customer || tx.customer_name || 'Pelanggan Umum');
+    const rawPaymentMethod = tx.payment_method || '';
+    const receiptPaymentMethod = escapeHtml(rawPaymentMethod);
+    const receiptPaymentStatus = escapeHtml(tx.payment_status);
+    const receiptDueDate = escapeHtml(tx.due_date);
 
     let itemsHtml = '';
     (tx.items || []).forEach(item => {
         const itemTotal = Number(item.subtotal_item || (item.unit_price * item.qty));
         const disc = Number(item.discount_per_item || 0);
+        const itemName = escapeHtml(item.name || item.product_name_snapshot);
+        const itemQty = escapeHtml(item.qty);
         itemsHtml += `
             <div style="margin-bottom: 5px;">
-                <div style="font-weight: bold;">${item.name || item.product_name_snapshot}</div>
+                <div style="font-weight: bold;">${itemName}</div>
                 <div class="receipt-row">
-                    <span>${item.qty} x ${formatRp(item.unit_price)} ${disc > 0 ? '(disc -' + formatRp(disc) + ')' : ''}</span>
+                    <span>${itemQty} x ${formatRp(item.unit_price)} ${disc > 0 ? '(disc -' + formatRp(disc) + ')' : ''}</span>
                     <span>${formatRp(itemTotal)}</span>
                 </div>
             </div>
@@ -206,27 +220,27 @@ function showReceiptModal(tx) {
     content.innerHTML = `
         <div class="thermal-receipt">
             <div class="receipt-header">
-                <div class="receipt-title">${storeName}</div>
-                <div>${storeAddress}</div>
-                <div>Telp: ${storePhone}</div>
+                <div class="receipt-title">${receiptStoreName}</div>
+                <div>${receiptStoreAddress}</div>
+                <div>Telp: ${receiptStorePhone}</div>
                 <div style="margin-top: 6px; font-weight: bold;">NOTA PENJUALAN</div>
             </div>
 
             <div class="receipt-row">
                 <span>Nota:</span>
-                <span style="font-weight: bold;">${tx.invoice_number}</span>
+                <span style="font-weight: bold;">${receiptInvoiceNumber}</span>
             </div>
             <div class="receipt-row">
                 <span>Tanggal:</span>
-                <span>${tx.date || tx.transaction_date}</span>
+                <span>${receiptDate}</span>
             </div>
             <div class="receipt-row">
                 <span>Kasir:</span>
-                <span>${tx.cashier || tx.cashier_name || 'Kasir'}</span>
+                <span>${receiptCashier}</span>
             </div>
             <div class="receipt-row">
                 <span>Pelanggan:</span>
-                <span>${tx.customer || tx.customer_name || 'Pelanggan Umum'}</span>
+                <span>${receiptCustomer}</span>
             </div>
 
             <div class="receipt-divider"></div>
@@ -252,13 +266,13 @@ function showReceiptModal(tx) {
             </div>
             <div class="receipt-row">
                 <span>Metode Bayar:</span>
-                <span style="font-weight: bold;">${tx.payment_method}</span>
+                <span style="font-weight: bold;">${receiptPaymentMethod}</span>
             </div>
             <div class="receipt-row">
                 <span>Nominal Bayar:</span>
                 <span>${formatRp(tx.paid_amount)}</span>
             </div>
-            ${tx.payment_method === 'TUNAI' || tx.payment_method === 'tunai' ? `
+            ${rawPaymentMethod === 'TUNAI' || rawPaymentMethod === 'tunai' ? `
             <div class="receipt-row">
                 <span>Kembalian:</span>
                 <span>${formatRp(tx.change_amount)}</span>
@@ -270,12 +284,12 @@ function showReceiptModal(tx) {
             </div>
             <div class="receipt-row receipt-debt" style="color: #b45309 !important;">
                 <span>Jatuh Tempo:</span>
-                <span>${tx.due_date}</span>
+                <span>${receiptDueDate}</span>
             </div>` : ''}
 
             <div class="receipt-footer">
-                <div>Status: ${tx.payment_status}</div>
-                <div style="margin-top: 6px;">${footerNotes}</div>
+                <div>Status: ${receiptPaymentStatus}</div>
+                <div style="margin-top: 6px;">${receiptFooterNotes}</div>
             </div>
         </div>
     `;

@@ -418,6 +418,30 @@ class SecurityAuditTest extends TestCase
         $this->assertDatabaseHas('transaction_items', ['transaction_id' => $response->json('transaction_id'), 'cost_price_snapshot' => 6000]);
     }
 
+    public function test_reprint_response_contains_only_receipt_store_fields(): void
+    {
+        foreach ([
+            'store_name' => 'Audit Store', 'store_address' => 'Fixture Address', 'store_phone' => '0800000000',
+            'receipt_footer' => 'Fixture Footer', 'internal_token' => 'test-only-private-setting',
+        ] as $key => $value) {
+            \App\Models\StoreSetting::create(['setting_key' => $key, 'setting_value' => $value]);
+        }
+
+        $checkout = $this->actingAs($this->cashier)->postJson('/api/pos/checkout', [
+            'items' => [['product_id' => $this->product->id, 'qty' => 1]],
+            'payment_method' => 'tunai', 'paid_amount' => 20000,
+        ])->assertOk();
+
+        $reprint = $this->actingAs($this->cashier)
+            ->getJson('/api/transactions/' . $checkout->json('transaction_id'))
+            ->assertOk();
+
+        $expectedStoreFields = ['store_name', 'store_address', 'store_phone', 'receipt_footer'];
+        $this->assertEqualsCanonicalizing($expectedStoreFields, array_keys($reprint->json('transaction.store')));
+        $this->assertEqualsCanonicalizing($expectedStoreFields, array_keys($reprint->json('store')));
+        $this->assertNoPrivateReceiptFields($reprint->json());
+    }
+
     private function assertNoPrivateReceiptFields(array $payload): void
     {
         foreach ($payload as $key => $value) {
