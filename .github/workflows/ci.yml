@@ -13,30 +13,18 @@ permissions:
   contents: read
 
 jobs:
-  php-tests:
-    name: PHPUnit (PHP 8.1 / SQLite)
+  verify:
+    name: PHPUnit and frontend build
     runs-on: ubuntu-latest
-    env:
-      APP_ENV: testing
-      APP_DEBUG: 'false'
-      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-      APP_CONFIG_CACHE: ${{ runner.temp }}/manxmarket-config-cache.php
-      DB_CONNECTION: sqlite
-      DB_DATABASE: ':memory:'
-      DB_URL: '(null)'
-      CACHE_STORE: array
-      CACHE_DRIVER: array
-      SESSION_DRIVER: array
-      QUEUE_CONNECTION: sync
-      MAIL_MAILER: array
-      LOG_CHANNEL: null
-      FILESYSTEM_DISK: local
+    timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
         with:
           php-version: '8.1'
           extensions: mbstring, dom, curl, libxml, sqlite3, pdo_sqlite, intl
@@ -49,20 +37,10 @@ jobs:
       - name: Install PHP dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
 
-      - name: Run Laravel tests
-        run: php artisan test --without-tty
-
-  frontend-build:
-    name: Frontend build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
 
       - name: Install JavaScript dependencies
@@ -73,3 +51,22 @@ jobs:
 
       - name: Verify tracked minified bundle is current
         run: git diff --exit-code -- public/assets/js/app.min.js
+
+      - name: Run Laravel tests
+        env:
+          APP_ENV: testing
+          APP_DEBUG: 'false'
+          APP_CONFIG_CACHE: ${{ runner.temp }}/manxmarket-config-cache.php
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+          DB_URL: '(null)'
+          CACHE_DRIVER: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+          MAIL_MAILER: array
+          LOG_CHANNEL: 'null'
+          FILESYSTEM_DISK: local
+        run: |
+          APP_KEY=$(php -r 'echo "base64:", base64_encode(random_bytes(32));')
+          export APP_KEY
+          php artisan test --without-tty --compact
