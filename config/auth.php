@@ -122,6 +122,6 @@ return [
     |
     */
 
-    'seed_default_password' => env('SEED_DEFAULT_PASSWORD', 'password123'),
+    'seed_default_password' => env('SEED_DEFAULT_PASSWORD'),
 
 ];

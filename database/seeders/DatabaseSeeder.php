@@ -13,7 +13,14 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $defaultPassword = config('auth.seed_default_password', 'password123');
+        if (User::whereIn('username', ['owner', 'kasir', 'gudang', 'pembeli'])->count() === 4) {
+            return;
+        }
+
+        $defaultPassword = config('auth.seed_default_password');
+        if (!is_string($defaultPassword) || trim($defaultPassword) === '') {
+            throw new \InvalidArgumentException('SEED_DEFAULT_PASSWORD wajib diisi sebelum membuat akun awal.');
+        }
         $hashedPassword = \Illuminate\Support\Facades\Hash::make($defaultPassword);
 
         // Seed default initial accounts if not present

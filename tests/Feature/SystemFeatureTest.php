@@ -8,13 +8,15 @@ use App\Models\Receivable;
 use App\Models\StoreSetting;
 use App\Models\Transaction;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use App\Services\CheckoutService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 class SystemFeatureTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected User $owner;
     protected User $kasir;
@@ -25,10 +27,22 @@ class SystemFeatureTest extends TestCase
     {
         parent::setUp();
 
-        $this->owner = User::where('role', 'owner')->first() ?? User::factory()->create(['role' => 'owner', 'is_active' => 1]);
-        $this->kasir = User::where('role', 'kasir')->first() ?? User::factory()->create(['role' => 'kasir', 'is_active' => 1]);
-        $this->gudang = User::where('role', 'gudang')->first() ?? User::factory()->create(['role' => 'gudang', 'is_active' => 1]);
-        $this->pembeli = User::where('role', 'pembeli')->first() ?? User::factory()->create(['role' => 'pembeli', 'is_active' => 1]);
+        foreach (['owner', 'kasir', 'gudang', 'pembeli'] as $role) {
+            $this->{$role} = User::factory()->create([
+                'name' => 'Fixture ' . $role,
+                'username' => 'fixture_' . $role,
+                'password' => Hash::make('Test-Fixture-Password!9'),
+                'role' => $role,
+                'is_active' => 1,
+                'credit_limit' => $role === 'pembeli' ? 1000000 : 0,
+            ]);
+        }
+
+        Product::create([
+            'sku' => 'FIXTURE-01', 'name' => 'Fixture Product', 'unit' => 'pcs',
+            'cost_price' => 6000, 'retail_price' => 10000, 'stock' => 50,
+            'min_stock' => 5, 'is_active' => 1,
+        ]);
     }
 
     public function test_auth_login_and_logout(): void
@@ -38,7 +52,7 @@ class SystemFeatureTest extends TestCase
 
         $loginResponse = $this->post('/login', [
             'username' => $this->owner->username,
-            'password' => 'password123',
+            'password' => 'Test-Fixture-Password!9',
         ]);
         $loginResponse->assertRedirect(route('reports.index'));
         $this->assertAuthenticatedAs($this->owner);

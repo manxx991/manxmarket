@@ -47,7 +47,15 @@ class PosController extends Controller
             $data = $request->all();
             $result = $checkoutService->processCheckout($data, $user);
 
-            return response()->json(array_merge(['success' => true, 'message' => 'Transaksi berhasil diproses.'], $result));
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaksi berhasil diproses.',
+                'transaction_id' => $result['transaction_id'],
+                'invoice_number' => $result['invoice_number'],
+                'transaction' => $result['transaction'],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage(), 'errors' => $e->errors()], 422);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
         }

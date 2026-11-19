@@ -105,10 +105,34 @@ class InventoryController extends Controller
         $retailPrice = (float)$validated['retail_price'];
         $categoryId = !empty($validated['category_id']) ? (int)$validated['category_id'] : null;
         $barcode = trim($validated['barcode'] ?? '');
+        $hasWholesale = !empty($request->input('has_wholesale'));
+        $wholesale = [];
+        if ($hasWholesale) {
+            $ruleMessage = "Aturan grosir produk '{$validated['name']}' tidak valid (:attribute).";
+            $wholesale = \Illuminate\Support\Facades\Validator::make($request->only([
+                'ws_min_qty', 'ws_discount_type', 'ws_discount_value',
+            ]), [
+                'ws_min_qty' => 'required|integer|min:2|max:2147483647',
+                'ws_discount_type' => 'required|in:fixed_amount,percentage,special_price',
+                'ws_discount_value' => [
+                    'required', 'numeric', 'min:0',
+                    function ($attribute, $value, $fail) use ($request, $retailPrice, $ruleMessage) {
+                        if (!is_numeric($value) || !is_finite((float) $value)
+                            || ($request->input('ws_discount_type') === 'percentage' && (float) $value > 100)
+                            || ($request->input('ws_discount_type') === 'fixed_amount' && (float) $value > $retailPrice)) {
+                            $fail($ruleMessage);
+                        }
+                    },
+                ],
+            ], [
+                'ws_min_qty.*' => $ruleMessage,
+                'ws_discount_type.*' => $ruleMessage,
+                'ws_discount_value.*' => $ruleMessage,
+            ])->validate();
+        }
 
-        if ($id) {
-            $product = Product::findOrFail($id);
-            $product->update([
+        $product = \Illuminate\Support\Facades\DB::transaction(function () use ($id, $validated, $sku, $unit, $minStock, $costPrice, $retailPrice, $categoryId, $barcode, $hasWholesale, $wholesale) {
+            $attributes = [
                 'category_id' => $categoryId,
                 'sku' => $sku,
                 'barcode' => $barcode,
@@ -117,56 +141,46 @@ class InventoryController extends Controller
                 'cost_price' => $costPrice,
                 'retail_price' => $retailPrice,
                 'min_stock' => $minStock,
-            ]);
-        } else {
-            $stock = (int)($validated['stock'] ?? 0);
-            $product = Product::create([
-                'category_id' => $categoryId,
-                'sku' => $sku,
-                'barcode' => $barcode,
-                'name' => trim($validated['name']),
-                'unit' => $unit,
-                'cost_price' => $costPrice,
-                'retail_price' => $retailPrice,
-                'stock' => $stock,
-                'min_stock' => $minStock,
-                'is_active' => 1,
-                'created_at' => now(),
-            ]);
+            ];
+            if ($id) {
+                $product = Product::where('id', $id)->lockForUpdate()->firstOrFail();
+                $product->update($attributes);
+            } else {
+                $stock = (int) ($validated['stock'] ?? 0);
+                $product = Product::create(array_merge($attributes, [
+                    'stock' => $stock, 'is_active' => 1, 'created_at' => now(),
+                ]));
 
-            if ($stock > 0) {
-                StockMovement::create([
+                if ($stock > 0) {
+                    StockMovement::create([
+                        'product_id' => $product->id,
+                        'user_id' => Auth::id(),
+                        'reference_id' => null,
+                        'movement_type' => 'in',
+                        'qty_change' => $stock,
+                        'stock_before' => 0,
+                        'stock_after' => $stock,
+                        'notes' => 'Stok Awal Input Produk Baru',
+                        'created_at' => now(),
+                    ]);
+                }
+            }
+
+            WholesaleRule::where('product_id', $product->id)->delete();
+            if ($hasWholesale) {
+                WholesaleRule::create([
                     'product_id' => $product->id,
-                    'user_id' => Auth::id(),
-                    'reference_id' => null,
-                    'movement_type' => 'in',
-                    'qty_change' => $stock,
-                    'stock_before' => 0,
-                    'stock_after' => $stock,
-                    'notes' => 'Stok Awal Input Produk Baru',
+                    'rule_type' => 'per_item_qty',
+                    'min_qty' => (int) $wholesale['ws_min_qty'],
+                    'min_amount' => 0.00,
+                    'discount_type' => $wholesale['ws_discount_type'],
+                    'discount_value' => (float) $wholesale['ws_discount_value'],
+                    'is_active' => 1,
                     'created_at' => now(),
                 ]);
             }
-        }
-
-        $hasWholesale = !empty($request->input('has_wholesale'));
-        $wsMinQty = (int)$request->input('ws_min_qty', 0);
-        $wsDiscountType = $request->input('ws_discount_type', 'fixed_amount');
-        $wsDiscountValue = (float)$request->input('ws_discount_value', 0);
-
-        WholesaleRule::where('product_id', $product->id)->delete();
-        if ($hasWholesale && $wsMinQty > 1 && $wsDiscountValue > 0) {
-            WholesaleRule::create([
-                'product_id' => $product->id,
-                'rule_type' => 'per_item_qty',
-                'min_qty' => $wsMinQty,
-                'min_amount' => 0.00,
-                'discount_type' => $wsDiscountType,
-                'discount_value' => $wsDiscountValue,
-                'is_active' => 1,
-                'created_at' => now(),
-            ]);
-        }
+            return $product;
+        });
 
         return response()->json(['success' => true, 'message' => 'Data produk berhasil disimpan.', 'product' => $product]);
     }
@@ -201,22 +215,31 @@ class InventoryController extends Controller
     public function adjustStock(Request $request, StockService $stockService)
     {
         $productId = (int)$request->input('product_id');
-        $qtyChange = (int)$request->input('qty_change', $request->input('qty', 0));
+        $qtyChange = $request->input('qty_change', $request->input('qty'));
+        if ((!is_int($qtyChange) && !is_string($qtyChange))
+            || filter_var($qtyChange, FILTER_VALIDATE_INT, ['options' => ['min_range' => -2147483647, 'max_range' => 2147483647]]) === false
+            || (int) $qtyChange === 0) {
+            return response()->json(['success' => false, 'message' => 'Jumlah perubahan stok wajib berupa bilangan bulat bukan nol.'], 422);
+        }
+        $qtyChange = (int) $qtyChange;
         $movementType = $request->input('movement_type', $request->input('type', 'adjustment'));
         $notes = trim($request->input('notes', ''));
 
+        if (!in_array($movementType, ['in', 'out', 'adjustment'], true)) {
+            return response()->json(['success' => false, 'message' => 'Jenis mutasi manual tidak valid.'], 422);
+        }
         if ($movementType === 'in') {
             $qtyChange = abs($qtyChange);
         } elseif ($movementType === 'out') {
             $qtyChange = -abs($qtyChange);
-            $movementType = 'adjustment';
-        } elseif (!in_array($movementType, ['in', 'sale', 'void_return', 'adjustment'], true)) {
             $movementType = 'adjustment';
         }
 
         try {
             $result = $stockService->adjustStock($productId, $qtyChange, $movementType, $notes, Auth::user());
             return response()->json($result);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage(), 'errors' => $e->errors()], 422);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
         }
@@ -225,12 +248,14 @@ class InventoryController extends Controller
     public function setPhysicalStock(Request $request, StockService $stockService)
     {
         $productId = (int)$request->input('product_id');
-        $newStock = (int)$request->input('new_stock', $request->input('actual_stock', 0));
+        $newStock = $request->input('new_stock', $request->input('actual_stock'));
         $notes = trim($request->input('notes', ''));
 
         try {
             $result = $stockService->setPhysicalStock($productId, $newStock, $notes, Auth::user());
             return response()->json($result);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage(), 'errors' => $e->errors()], 422);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
         }
