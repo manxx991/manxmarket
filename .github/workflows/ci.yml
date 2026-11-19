@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - main
-      - 'fix/**'
 
 permissions:
   contents: read
@@ -17,6 +16,20 @@ jobs:
     name: PHPUnit and frontend build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Composer's package discovery also boots Laravel before PHPUnit.
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_CONFIG_CACHE: tests/.phpunit-no-config-cache.php
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      DB_URL: '(null)'
+      CACHE_DRIVER: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      LOG_CHANNEL: 'null'
+      FILESYSTEM_DISK: local
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -53,19 +66,6 @@ jobs:
         run: git diff --exit-code -- public/assets/js/app.min.js
 
       - name: Run Laravel tests
-        env:
-          APP_ENV: testing
-          APP_DEBUG: 'false'
-          APP_CONFIG_CACHE: ${{ runner.temp }}/manxmarket-config-cache.php
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ':memory:'
-          DB_URL: '(null)'
-          CACHE_DRIVER: array
-          SESSION_DRIVER: array
-          QUEUE_CONNECTION: sync
-          MAIL_MAILER: array
-          LOG_CHANNEL: 'null'
-          FILESYSTEM_DISK: local
         run: |
           APP_KEY=$(php -r 'echo "base64:", base64_encode(random_bytes(32));')
           export APP_KEY
