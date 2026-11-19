@@ -12,24 +12,17 @@ use Illuminate\Support\Str;
 class UserFactory extends Factory
 {
     /**
-     * The current password being used by the factory.
-     */
-    protected static ?string $password;
-
-    /**
      * Define the model's default state.
      *
      * @return array<string, mixed>
      */
     public function definition(): array
     {
-        $defaultPassword = config('auth.seed_default_password', 'password123');
-
         return [
             'name' => fake()->name(),
             'username' => preg_replace('/[^a-z0-9_]/', '', strtolower(fake()->unique()->userName())),
-            'password' => static::$password ??= Hash::make($defaultPassword),
-            'role' => 'kasir',
+            'password' => Hash::make(Str::random(40)),
+            'role' => 'pembeli',
             'is_active' => 1,
             'credit_limit' => 0,
             'created_at' => now(),

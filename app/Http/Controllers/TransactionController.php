@@ -79,7 +79,9 @@ class TransactionController extends Controller
             ];
         });
 
-        $store = StoreSetting::allSettings();
+        $store = StoreSetting::whereIn('setting_key', [
+            'store_name', 'store_address', 'store_phone', 'receipt_footer',
+        ])->pluck('setting_value', 'setting_key')->all();
 
         return response()->json([
             'success' => true,

@@ -21,10 +21,40 @@ class CheckoutService
             throw new Exception("Keranjang belanja kosong atau data tidak valid.");
         }
 
+        \Illuminate\Support\Facades\Validator::make(['items' => $items], [
+            'items' => 'required|array|min:1',
+            'items.*' => 'required|array',
+        ])->validate();
+
+        $seenProducts = [];
+        foreach ($items as &$item) {
+            foreach (['product_id' => $item['product_id'] ?? $item['id'] ?? null, 'qty' => $item['qty'] ?? null] as $field => $value) {
+                $max = $field === 'qty' ? 2147483647 : PHP_INT_MAX;
+                if ((!is_int($value) && !is_string($value))
+                    || filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => $max]]) === false) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(["items.$field" => "$field wajib berupa bilangan bulat positif yang valid."]);
+                }
+                $item[$field] = (int) $value;
+            }
+            $productId = $item['product_id'];
+            if (isset($seenProducts[$productId])) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'Produk yang sama tidak boleh muncul lebih dari sekali.']);
+            }
+            $seenProducts[$productId] = true;
+        }
+        unset($item);
+
         $paymentMethod = $data['payment_method'] ?? 'tunai';
         $customerId = !empty($data['customer_id']) ? (int)$data['customer_id'] : null;
         $customerNameManual = trim($data['customer_name_manual'] ?? '');
-        $paidAmount = (float)($data['paid_amount'] ?? 0);
+        $paidAmount = $data['paid_amount'] ?? 0;
+        if ($paymentMethod === 'hutang' && is_string($paidAmount) && trim($paidAmount) === '') {
+            $paidAmount = 0;
+        }
+        if (!is_numeric($paidAmount) || !is_finite((float) $paidAmount) || (float) $paidAmount < 0) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['paid_amount' => 'Nominal pembayaran wajib berupa angka nonnegatif yang valid.']);
+        }
+        $paidAmount = (float) $paidAmount;
         $dueDate = !empty($data['due_date']) ? $data['due_date'] : date('Y-m-d', strtotime('+14 days'));
 
         if (!in_array($paymentMethod, ['tunai', 'qris', 'hutang'], true)) {
@@ -50,16 +80,13 @@ class CheckoutService
             }
 
             $processedItems = [];
+            $costPriceSnapshots = [];
             $subtotal = 0.00;
             $totalDiscount = 0.00;
 
             foreach ($items as $it) {
-                $pId = (int)($it['product_id'] ?? ($it['id'] ?? 0));
-                $qty = (int)($it['qty'] ?? 0);
-
-                if ($qty <= 0) {
-                    continue;
-                }
+                $pId = $it['product_id'];
+                $qty = $it['qty'];
 
                 $product = Product::where('id', $pId)->lockForUpdate()->first();
                 if (!$product) {
@@ -72,6 +99,7 @@ class CheckoutService
 
                 $unitPrice = (float)$product->retail_price;
                 $costPrice = (float)$product->cost_price;
+                $costPriceSnapshots[$product->id] = $costPrice;
                 $discountPerItem = 0.00;
 
                 $rules = WholesaleRule::where('product_id', $pId)
@@ -81,12 +109,21 @@ class CheckoutService
 
                 foreach ($rules as $r) {
                     if ($r->rule_type === 'per_item_qty' && $qty >= (int)$r->min_qty) {
+                        $discountValue = $r->getRawOriginal('discount_value');
+                        if (filter_var($r->getRawOriginal('min_qty'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 2]]) === false
+                            || !in_array($r->discount_type, ['fixed_amount', 'percentage', 'special_price'], true)
+                            || !is_numeric($discountValue) || !is_finite((float) $discountValue) || (float) $discountValue < 0
+                            || ($r->discount_type === 'fixed_amount' && (float) $discountValue > $unitPrice)
+                            || ($r->discount_type === 'percentage' && (float) $discountValue > 100)) {
+                            throw \Illuminate\Validation\ValidationException::withMessages(['items' => "Aturan grosir produk '{$product->name}' tidak valid."]);
+                        }
+                        $discountValue = (float) $discountValue;
                         if ($r->discount_type === 'fixed_amount') {
-                            $discountPerItem = (float)$r->discount_value;
+                            $discountPerItem = $discountValue;
                         } elseif ($r->discount_type === 'percentage') {
-                            $discountPerItem = ($unitPrice * (float)$r->discount_value) / 100.0;
+                            $discountPerItem = ($unitPrice * $discountValue) / 100.0;
                         } elseif ($r->discount_type === 'special_price') {
-                            $discountPerItem = max(0, $unitPrice - (float)$r->discount_value);
+                            $discountPerItem = max(0, $unitPrice - $discountValue);
                         }
                         break;
                     }
@@ -97,16 +134,13 @@ class CheckoutService
                 $totalDiscount += ($discountPerItem * $qty);
 
                 $processedItems[] = [
-                    'product_model' => $product,
                     'product_id' => $product->id,
                     'name' => $product->name,
                     'sku' => $product->sku,
-                    'cost_price' => $costPrice,
                     'unit_price' => $unitPrice,
                     'discount_per_item' => $discountPerItem,
                     'qty' => $qty,
                     'subtotal_item' => $itemSubtotal,
-                    'current_stock' => (int)$product->stock,
                 ];
             }
 
@@ -195,14 +229,14 @@ class CheckoutService
                     'product_name_snapshot' => $pItem['name'],
                     'sku_snapshot' => $pItem['sku'],
                     'qty' => $pItem['qty'],
-                    'cost_price_snapshot' => $pItem['cost_price'],
+                    'cost_price_snapshot' => $costPriceSnapshots[$pItem['product_id']],
                     'unit_price' => $pItem['unit_price'],
                     'discount_per_item' => $pItem['discount_per_item'],
                     'subtotal_item' => $pItem['subtotal_item'],
                 ]);
 
-                $product = $pItem['product_model'];
-                $stockBefore = (int)$product->stock;
+                $product = Product::where('id', $pItem['product_id'])->lockForUpdate()->firstOrFail();
+                $stockBefore = (int) $product->stock;
                 $stockAfter = $stockBefore - $pItem['qty'];
 
                 $product->update(['stock' => $stockAfter]);
@@ -233,7 +267,9 @@ class CheckoutService
                 ]);
             }
 
-            $store = \App\Models\StoreSetting::allSettings();
+            $store = \App\Models\StoreSetting::whereIn('setting_key', [
+                'store_name', 'store_address', 'store_phone', 'receipt_footer',
+            ])->pluck('setting_value', 'setting_key')->all();
 
             $transPayload = [
                 'id' => $transaction->id,

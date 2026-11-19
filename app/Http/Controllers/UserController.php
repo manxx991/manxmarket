@@ -35,7 +35,7 @@ class UserController extends Controller
             });
         }
 
-        $users = $query->orderByRaw("FIELD(role, 'owner', 'kasir', 'gudang', 'pembeli')")
+        $users = $query->orderByRaw("CASE role WHEN 'owner' THEN 0 WHEN 'kasir' THEN 1 WHEN 'gudang' THEN 2 WHEN 'pembeli' THEN 3 ELSE 4 END")
             ->orderBy('name', 'asc')
             ->paginate(10)
             ->withQueryString();
