@@ -47,7 +47,7 @@
                 </div>
                 <span class="text-xs text-text-muted">Gunakan dropdown pemilih akun di atas untuk mengganti profil aktif</span>
             </div>
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400" tabindex="0" role="region" aria-label="Tabel daftar seluruh pembeli">
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-background-canvas dark:bg-slate-800/80 text-text-muted dark:text-slate-400 uppercase text-[11px] font-semibold border-b border-border-subtle dark:border-slate-800">
@@ -147,7 +147,7 @@
             <h2 class="font-bold text-sm text-text-main dark:text-white">Daftar Tagihan Kasbon &amp; Jatuh Tempo Akun Ini</h2>
             <span class="text-xs text-text-muted">{{ count($myReceivables) }} faktur tercatat</span>
         </div>
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400" tabindex="0" role="region" aria-label="Tabel tagihan kasbon akun ini">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
                     <tr class="bg-background-canvas dark:bg-slate-800/80 text-text-muted dark:text-slate-400 uppercase text-[11px] font-semibold border-b border-border-subtle dark:border-slate-800">
@@ -212,7 +212,7 @@
             </div>
             <span class="text-xs text-text-muted">{{ count($myTransactions) }} transaksi belanja terakhir akun ini</span>
         </div>
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400" tabindex="0" role="region" aria-label="Tabel riwayat belanja">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
                     <tr class="bg-background-canvas dark:bg-slate-800/80 text-text-muted dark:text-slate-400 uppercase text-[11px] font-semibold border-b border-border-subtle dark:border-slate-800">
@@ -232,7 +232,7 @@
                             $itemsCount = $t->items ? $t->items->count() : 0;
                             $isLunas = ($t->payment_status === 'lunas') || ($t->receivable && $t->receivable->status === 'lunas');
                         @endphp
-                        <tr class="hover:bg-background-subtle dark:hover:bg-slate-800/40 transition-colors {{ $t->payment_status === 'void' ? 'opacity-60 bg-red-50/30 dark:bg-red-950/20' : '' }}">
+                        <tr class="hover:bg-background-subtle dark:hover:bg-slate-800/40 transition-colors {{ $t->payment_status === 'void' ? 'bg-red-50/30 dark:bg-red-950/20' : '' }}">
                             <td class="p-3 font-mono font-bold text-text-main dark:text-white whitespace-nowrap">
                                 {{ $t->invoice_number }}
                             </td>
@@ -340,7 +340,7 @@
         </div>
 
         <!-- Mode Tabel Katalog -->
-        <div id="catalogTableWrapper" class="overflow-x-auto">
+        <div id="catalogTableWrapper" class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400" tabindex="0" role="region" aria-label="Tabel katalog harga produk">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
                     <tr class="bg-background-canvas dark:bg-slate-800/80 text-text-muted dark:text-slate-400 uppercase text-[11px] font-semibold border-b border-border-subtle dark:border-slate-800">

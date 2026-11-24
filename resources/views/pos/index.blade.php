@@ -63,6 +63,15 @@
                     if ($p->stock <= 0) $stockBadge = 'bg-red-50 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800/60';
                     elseif ($p->stock <= $p->min_stock) $stockBadge = 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60';
                     $wsRule = $p->activeWholesaleRule;
+                    $wholesaleDiscount = 0;
+                    if ($wsRule && $wsRule->rule_type === 'per_item_qty') {
+                        $wholesaleDiscount = match ($wsRule->discount_type) {
+                            'percentage' => (float) $p->retail_price * (float) $wsRule->discount_value / 100,
+                            'special_price' => max(0, (float) $p->retail_price - (float) $wsRule->discount_value),
+                            default => (float) $wsRule->discount_value,
+                        };
+                    }
+                    $wholesalePrice = max(0, (float) $p->retail_price - $wholesaleDiscount);
                 @endphp
                 <article class="group relative bg-surface-white dark:bg-slate-900 rounded-2xl p-3.5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between border border-border-subtle dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 {{ $isOutOfStock ? 'opacity-60 pointer-events-none' : '' }}" data-sku="{{ $p->sku }}" data-price="{{ (float)$p->retail_price }}">
                     <button type="button" onclick="posApp && posApp.addToCart({{ $p->id }})" class="absolute inset-0 w-full h-full rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 cursor-pointer z-10" aria-label="Tambah {{ $p->name }} harga {{ formatRupiah($p->retail_price) }} ke keranjang" @if($isOutOfStock) disabled @endif></button>
@@ -89,7 +98,7 @@
                                     <span class="material-symbols-outlined text-[13px] shrink-0" aria-hidden="true">sell</span>
                                     <span class="truncate">&ge; {{ $wsRule->min_qty }} {{ $p->unit }}</span>
                                 </span>
-                                <span class="font-mono whitespace-nowrap shrink-0">@ {{ formatRupiah($p->retail_price - $wsRule->discount_value) }}</span>
+                                <span class="font-mono whitespace-nowrap shrink-0">@ {{ formatRupiah($wholesalePrice) }}</span>
                             </div>
                         @endif
                     </div>
@@ -390,6 +399,12 @@
 <script>
     @php
     $productsJson = $products->map(function($p) {
+        $rule = $p->activeWholesaleRule;
+        $wholesaleDiscount = $rule ? match ($rule->discount_type) {
+            'percentage' => (float) $p->retail_price * (float) $rule->discount_value / 100,
+            'special_price' => max(0, (float) $p->retail_price - (float) $rule->discount_value),
+            default => (float) $rule->discount_value,
+        } : 0;
         return [
             'id' => $p->id,
             'category_id' => $p->category_id,
@@ -405,7 +420,8 @@
             'wholesale_min_qty' => $p->activeWholesaleRule->min_qty ?? null,
             'wholesale_discount_type' => $p->activeWholesaleRule->discount_type ?? null,
             'wholesale_discount_value' => $p->activeWholesaleRule ? (float)$p->activeWholesaleRule->discount_value : null,
-            'image_url' => asset('assets/produk/' . strtolower($p->sku) . '.webp'),
+            'wholesale_final_price' => $rule && $rule->rule_type === 'per_item_qty' ? max(0, (float) $p->retail_price - $wholesaleDiscount) : null,
+            'image_url' => $p->image_url,
         ];
     });
 

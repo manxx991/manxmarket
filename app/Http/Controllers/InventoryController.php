@@ -10,7 +10,11 @@ use App\Services\StockService;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class InventoryController extends Controller
 {
@@ -96,6 +100,12 @@ class InventoryController extends Controller
             'unit' => 'nullable|string|max:30',
             'category_id' => 'nullable|exists:categories,id',
             'barcode' => 'nullable|string|max:60',
+            'image' => 'bail|nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+        ], [
+            'image.image' => 'File harus berupa gambar JPG/JPEG, PNG, atau WebP.',
+            'image.mimes' => 'Format gambar harus JPG/JPEG, PNG, atau WebP.',
+            'image.max' => 'Ukuran gambar maksimal 2 MB.',
+            'image.uploaded' => 'Gambar gagal diunggah. Pilih JPG/JPEG, PNG, atau WebP maksimal 2 MB.',
         ]);
 
         $sku = strtoupper(trim($validated['sku']));
@@ -105,7 +115,8 @@ class InventoryController extends Controller
         $retailPrice = (float)$validated['retail_price'];
         $categoryId = !empty($validated['category_id']) ? (int)$validated['category_id'] : null;
         $barcode = trim($validated['barcode'] ?? '');
-        $hasWholesale = !empty($request->input('has_wholesale'));
+        $writeWholesale = $request->boolean('wholesale_configured') || $request->has('has_wholesale');
+        $hasWholesale = $request->boolean('has_wholesale');
         $wholesale = [];
         if ($hasWholesale) {
             $ruleMessage = "Aturan grosir produk '{$validated['name']}' tidak valid (:attribute).";
@@ -131,58 +142,105 @@ class InventoryController extends Controller
             ])->validate();
         }
 
-        $product = \Illuminate\Support\Facades\DB::transaction(function () use ($id, $validated, $sku, $unit, $minStock, $costPrice, $retailPrice, $categoryId, $barcode, $hasWholesale, $wholesale) {
-            $attributes = [
-                'category_id' => $categoryId,
-                'sku' => $sku,
-                'barcode' => $barcode,
-                'name' => trim($validated['name']),
-                'unit' => $unit,
-                'cost_price' => $costPrice,
-                'retail_price' => $retailPrice,
-                'min_stock' => $minStock,
-            ];
-            if ($id) {
-                $product = Product::where('id', $id)->lockForUpdate()->firstOrFail();
-                $product->update($attributes);
-            } else {
-                $stock = (int) ($validated['stock'] ?? 0);
-                $product = Product::create(array_merge($attributes, [
-                    'stock' => $stock, 'is_active' => 1, 'created_at' => now(),
-                ]));
+        $attributes = [
+            'category_id' => $categoryId,
+            'sku' => $sku,
+            'barcode' => $barcode,
+            'name' => trim($validated['name']),
+            'unit' => $unit,
+            'cost_price' => $costPrice,
+            'retail_price' => $retailPrice,
+            'min_stock' => $minStock,
+        ];
+        $newImagePath = null;
+        $oldImagePath = null;
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $fileName = $image->hashName();
+            $newImagePath = 'products/'.$fileName;
+            try {
+                $stored = $image->storeAs('products', $fileName, 'public');
+            } catch (Throwable $e) {
+                report($e);
+                $stored = false;
+            }
+            if ($stored === false) {
+                $this->deleteProductImage($newImagePath);
+                throw ValidationException::withMessages(['image' => 'Gambar gagal disimpan. Silakan coba lagi.']);
+            }
+            $attributes['image_path'] = $newImagePath;
+        }
 
-                if ($stock > 0) {
-                    StockMovement::create([
+        $stock = (int) ($validated['stock'] ?? 0);
+        try {
+            $product = DB::transaction(function () use ($id, $attributes, $stock, $writeWholesale, $hasWholesale, $wholesale, &$oldImagePath) {
+                if ($id) {
+                    $product = Product::where('id', $id)->lockForUpdate()->firstOrFail();
+                    $oldImagePath = $product->image_path;
+                    $product->update($attributes);
+                } else {
+                    $product = Product::create(array_merge($attributes, [
+                        'stock' => $stock, 'is_active' => 1, 'created_at' => now(),
+                    ]));
+
+                    if ($stock > 0) {
+                        StockMovement::create([
+                            'product_id' => $product->id,
+                            'user_id' => Auth::id(),
+                            'reference_id' => null,
+                            'movement_type' => 'in',
+                            'qty_change' => $stock,
+                            'stock_before' => 0,
+                            'stock_after' => $stock,
+                            'notes' => 'Stok Awal Input Produk Baru',
+                            'created_at' => now(),
+                        ]);
+                    }
+                }
+
+                if ($writeWholesale) {
+                    WholesaleRule::where('product_id', $product->id)->delete();
+                }
+                if ($hasWholesale) {
+                    WholesaleRule::create([
                         'product_id' => $product->id,
-                        'user_id' => Auth::id(),
-                        'reference_id' => null,
-                        'movement_type' => 'in',
-                        'qty_change' => $stock,
-                        'stock_before' => 0,
-                        'stock_after' => $stock,
-                        'notes' => 'Stok Awal Input Produk Baru',
+                        'rule_type' => 'per_item_qty',
+                        'min_qty' => (int) $wholesale['ws_min_qty'],
+                        'min_amount' => 0.00,
+                        'discount_type' => $wholesale['ws_discount_type'],
+                        'discount_value' => (float) $wholesale['ws_discount_value'],
+                        'is_active' => 1,
                         'created_at' => now(),
                     ]);
                 }
+                return $product;
+            });
+        } catch (Throwable $e) {
+            if ($newImagePath !== null) {
+                $this->deleteProductImage($newImagePath);
             }
+            throw $e;
+        }
 
-            WholesaleRule::where('product_id', $product->id)->delete();
-            if ($hasWholesale) {
-                WholesaleRule::create([
-                    'product_id' => $product->id,
-                    'rule_type' => 'per_item_qty',
-                    'min_qty' => (int) $wholesale['ws_min_qty'],
-                    'min_amount' => 0.00,
-                    'discount_type' => $wholesale['ws_discount_type'],
-                    'discount_value' => (float) $wholesale['ws_discount_value'],
-                    'is_active' => 1,
-                    'created_at' => now(),
-                ]);
-            }
-            return $product;
-        });
+        if ($newImagePath !== null && $oldImagePath && $oldImagePath !== $newImagePath) {
+            DB::afterCommit(fn () => $this->deleteProductImage($oldImagePath));
+        }
 
         return response()->json(['success' => true, 'message' => 'Data produk berhasil disimpan.', 'product' => $product]);
+    }
+
+    private function deleteProductImage(string $path): void
+    {
+        if (!preg_match('/\Aproducts\/[A-Za-z0-9_-]+\.(?:jpe?g|png|webp)\z/', $path)) {
+            return;
+        }
+        try {
+            if (!Storage::disk('public')->delete($path)) {
+                report(new \RuntimeException('Gambar produk gagal dihapus: '.$path));
+            }
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     public function storeCategory(Request $request)

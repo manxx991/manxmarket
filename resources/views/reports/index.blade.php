@@ -21,9 +21,11 @@
             </div>
 
             <div class="flex items-center gap-2 text-xs text-text-muted">
-                <input type="date" name="start_date" value="{{ $startDate }}" class="px-2.5 py-1.5 rounded-xl border border-border-subtle dark:border-slate-700 bg-background-canvas dark:bg-slate-800 text-text-main dark:text-white text-xs font-mono outline-none focus:border-blue-500">
+                <label for="reportStartDate" class="sr-only">Dari tanggal</label>
+                <input type="date" id="reportStartDate" name="start_date" value="{{ $startDate }}" class="px-2.5 py-1.5 rounded-xl border border-border-subtle dark:border-slate-700 bg-background-canvas dark:bg-slate-800 text-text-main dark:text-white text-xs font-mono outline-none focus:border-blue-500">
                 <span>s/d</span>
-                <input type="date" name="end_date" value="{{ $endDate }}" class="px-2.5 py-1.5 rounded-xl border border-border-subtle dark:border-slate-700 bg-background-canvas dark:bg-slate-800 text-text-main dark:text-white text-xs font-mono outline-none focus:border-blue-500">
+                <label for="reportEndDate" class="sr-only">Sampai tanggal</label>
+                <input type="date" id="reportEndDate" name="end_date" value="{{ $endDate }}" class="px-2.5 py-1.5 rounded-xl border border-border-subtle dark:border-slate-700 bg-background-canvas dark:bg-slate-800 text-text-main dark:text-white text-xs font-mono outline-none focus:border-blue-500">
                 <input type="hidden" name="period" value="custom">
                 <button type="submit" class="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-hover dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors cursor-pointer">
                     Filter
@@ -215,7 +217,7 @@
                 <p class="text-[11px] text-text-muted mt-0.5">Daftar transaksi penjualan terkini pada sistem</p>
             </div>
         </div>
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400" tabindex="0" role="region" aria-label="Tabel audit transaksi terbaru">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
                     <tr class="bg-background-canvas dark:bg-slate-800/60 text-text-muted uppercase text-[11px] font-semibold border-b border-border-subtle dark:border-slate-800">

@@ -43,7 +43,7 @@
                         <option value="belum_lunas" {{ $status === 'belum_lunas' ? 'selected' : '' }}>Belum Lunas (Tempo)</option>
                         <option value="void" {{ $status === 'void' ? 'selected' : '' }}>VOID (Batal)</option>
                     </select>
-                    <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none text-[18px]">unfold_more</span>
+                    <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-300 pointer-events-none text-[18px]" aria-hidden="true">unfold_more</span>
                 </div>
             </div>
 
@@ -56,7 +56,7 @@
                         <option value="qris" {{ $paymentMethod === 'qris' ? 'selected' : '' }}>QRIS</option>
                         <option value="hutang" {{ $paymentMethod === 'hutang' ? 'selected' : '' }}>Hutang/Tempo</option>
                     </select>
-                    <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none text-[18px]">unfold_more</span>
+                    <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-300 pointer-events-none text-[18px]" aria-hidden="true">unfold_more</span>
                 </div>
             </div>
 
@@ -105,11 +105,11 @@
                 </thead>
                 <tbody class="divide-y divide-border-subtle dark:divide-slate-800">
                     @forelse ($transactions as $t)
-                        <tr class="hover:bg-background-canvas dark:hover:bg-slate-800/40 transition-colors {{ $t->payment_status === 'void' ? 'bg-red-50/40 dark:bg-red-950/20 opacity-75' : '' }}">
+                        <tr class="hover:bg-background-canvas dark:hover:bg-slate-800/40 transition-colors {{ $t->payment_status === 'void' ? 'bg-red-50/40 dark:bg-red-950/20' : '' }}">
                             <td class="p-3.5 font-mono font-bold text-text-main dark:text-white whitespace-nowrap">
                                 {{ $t->invoice_number }}
                             </td>
-                            <td class="p-3.5 whitespace-nowrap text-text-muted font-mono">
+                            <td class="p-3.5 whitespace-nowrap font-mono text-text-muted dark:text-slate-400">
                                 {{ $t->transaction_date->format('d/m/Y H:i') }}
                             </td>
                             <td class="p-3.5 whitespace-nowrap text-text-main dark:text-slate-200 font-medium">

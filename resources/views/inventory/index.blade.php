@@ -178,6 +178,17 @@
                                     <button type="button" onclick="openStockHistoryModal({{ $p->id }}, '{{ addslashes($p->name) }}', '{{ $p->unit }}')" class="px-2 py-1 rounded-lg bg-surface-white dark:bg-slate-800 border border-border-subtle dark:border-slate-700 hover:bg-background-subtle dark:hover:bg-slate-700 text-xs text-secondary dark:text-blue-400 transition-colors cursor-pointer" title="Riwayat Mutasi">
                                         Riwayat
                                     </button>
+                                    <button type="button" onclick="openProductModal(this.dataset)"
+                                        data-id="{{ $p->id }}" data-sku="{{ $p->sku }}" data-barcode="{{ $p->barcode }}"
+                                        data-name="{{ $p->name }}" data-category_id="{{ $p->category_id }}" data-unit="{{ $p->unit }}"
+                                        data-cost_price="{{ $p->cost_price }}" data-retail_price="{{ $p->retail_price }}"
+                                        data-min_stock="{{ $p->min_stock }}" data-stock="{{ $p->stock }}"
+                                        data-wholesale_enabled="{{ $p->activeWholesaleRule ? '1' : '0' }}"
+                                        data-wholesale_min_qty="{{ $p->activeWholesaleRule->min_qty ?? 2 }}"
+                                        data-wholesale_discount_type="{{ $p->activeWholesaleRule->discount_type ?? 'fixed_amount' }}"
+                                        data-wholesale_discount_value="{{ $p->activeWholesaleRule->discount_value ?? 0 }}"
+                                        class="ml-1 min-h-11 min-w-11 px-2 rounded-lg border border-slate-500 bg-surface-white text-xs font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:focus-visible:outline-blue-400 cursor-pointer"
+                                        aria-label="Edit produk {{ $p->name }}">Edit</button>
                                 </td>
                             </tr>
                         @empty
@@ -219,7 +230,7 @@
                 <a href="{{ route('inventory.index', ['tab' => 'movements']) }}" class="px-3.5 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-muted hover:text-text-main dark:hover:text-white text-xs font-semibold transition-colors cursor-pointer">Reset</a>
             </form>
 
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400" tabindex="0" role="region" aria-label="Tabel histori mutasi stok">
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-background-canvas dark:bg-slate-800/80 text-text-muted dark:text-slate-400 uppercase text-[11px] font-semibold border-b border-border-subtle dark:border-slate-800">
@@ -297,36 +308,38 @@
 </div>
 
 <!-- Modal: Tambah/Edit Produk -->
-<div id="productModal" class="modal-backdrop hidden fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-    <div class="bg-surface-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-xl border border-border-subtle dark:border-slate-800">
-        <div class="flex items-center justify-between pb-3 border-b border-border-subtle dark:border-slate-800">
-            <h2 class="font-bold text-base text-text-main dark:text-white" id="prodModalTitle">Tambah Produk Baru</h2>
-            <button type="button" onclick="closeModal('productModal')" class="text-text-muted hover:text-text-main dark:hover:text-white cursor-pointer">
-                <span class="material-symbols-outlined text-[20px]">close</span>
+<dialog id="productModal" aria-labelledby="prodModalTitle" class="m-auto max-h-none w-[calc(100%_-_1.5rem)] max-w-lg overflow-hidden rounded-2xl border border-border-subtle bg-surface-white p-0 text-slate-900 shadow-xl backdrop:bg-black/60 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+    <form id="productForm" action="{{ route('inventory.storeProduct') }}" method="post" enctype="multipart/form-data" onsubmit="submitProductForm(event)" class="flex max-h-[calc(100dvh_-_1.5rem)] flex-col text-xs">
+        <div class="flex shrink-0 items-center justify-between border-b border-border-subtle px-4 py-2 dark:border-slate-800 sm:px-6">
+            <h2 id="prodModalTitle" class="text-base font-bold">Tambah Produk Baru</h2>
+            <button type="button" onclick="productModal.close()" class="grid min-h-11 min-w-11 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600 dark:text-slate-200 dark:hover:bg-slate-800 dark:focus-visible:outline-blue-400 cursor-pointer" aria-label="Tutup form produk">
+                <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
             </button>
         </div>
-        <form onsubmit="submitProductForm(event)" class="flex flex-col gap-3 mt-4 text-xs">
+        <div id="productFields" class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+        <fieldset id="productInputs" class="flex min-w-0 flex-col gap-3">
             @csrf
             <input type="hidden" id="prodId" name="id">
+            <input type="hidden" name="wholesale_configured" value="1">
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="font-semibold block text-text-main dark:text-white mb-1">SKU (Kode Unik) *</label>
-                    <input type="text" id="prodSku" class="w-full px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-main dark:text-white font-mono outline-none focus:border-blue-500" required>
+                    <label for="prodSku" class="font-semibold block mb-1">SKU (Kode Unik) *</label>
+                    <input type="text" id="prodSku" name="sku" maxlength="60" autofocus class="w-full min-h-11 px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-slate-500 font-mono focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400" required>
                 </div>
                 <div>
-                    <label class="font-semibold block text-text-main dark:text-white mb-1">Barcode (Opsional)</label>
-                    <input type="text" id="prodBarcode" class="w-full px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-main dark:text-white font-mono outline-none focus:border-blue-500">
+                    <label for="prodBarcode" class="font-semibold block mb-1">Barcode (Opsional)</label>
+                    <input type="text" id="prodBarcode" name="barcode" maxlength="60" class="w-full min-h-11 px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-slate-500 font-mono focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400">
                 </div>
             </div>
             <div>
-                <label class="font-semibold block text-text-main dark:text-white mb-1">Nama Produk *</label>
-                <input type="text" id="prodName" class="w-full px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-main dark:text-white outline-none focus:border-blue-500" required>
+                <label for="prodName" class="font-semibold block mb-1">Nama Produk *</label>
+                <input type="text" id="prodName" name="name" maxlength="200" class="w-full min-h-11 px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-slate-500 focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400" required>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="font-semibold block text-text-main dark:text-white mb-1" for="prodCategory">Kategori</label>
                     <div class="relative">
-                        <select id="prodCategory" class="w-full pl-3 pr-8 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-main dark:text-white text-xs appearance-none cursor-pointer outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-slate-300 dark:hover:border-slate-600 transition-all shadow-xs">
+                        <select id="prodCategory" name="category_id" class="w-full min-h-11 pl-3 pr-8 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-slate-500 text-xs appearance-none cursor-pointer focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400">
                             <option value="">-- Pilih Kategori --</option>
                             @foreach($categories as $cat)
                                 <option value="{{ $cat->id }}">{{ $cat->name }}</option>
@@ -336,37 +349,78 @@
                     </div>
                 </div>
                 <div>
-                    <label class="font-semibold block text-text-main dark:text-white mb-1">Satuan Unit</label>
-                    <input type="text" id="prodUnit" value="pcs" class="w-full px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-main dark:text-white outline-none focus:border-blue-500">
+                    <label for="prodUnit" class="font-semibold block mb-1">Satuan Unit</label>
+                    <input type="text" id="prodUnit" name="unit" value="pcs" maxlength="30" class="w-full min-h-11 px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-slate-500 focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400">
                 </div>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="font-semibold block text-text-main dark:text-white mb-1">Harga Modal (HPP)</label>
-                    <input type="number" id="prodCost" step="100" class="w-full px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-main dark:text-white font-mono outline-none focus:border-blue-500">
+                    <label for="prodCost" class="font-semibold block mb-1">Harga Modal (HPP)</label>
+                    <input type="number" id="prodCost" name="cost_price" value="0" step="0.01" min="0" class="w-full min-h-11 px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-slate-500 font-mono focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400">
                 </div>
                 <div>
-                    <label class="font-semibold block text-text-main dark:text-white mb-1">Harga Jual Eceran *</label>
-                    <input type="number" id="prodRetail" step="100" class="w-full px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-main dark:text-white font-mono outline-none focus:border-blue-500" required>
+                    <label for="prodRetail" class="font-semibold block mb-1">Harga Jual Eceran *</label>
+                    <input type="number" id="prodRetail" name="retail_price" value="0" step="0.01" min="0" class="w-full min-h-11 px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-slate-500 font-mono focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400" required>
                 </div>
             </div>
-            <div class="grid grid-cols-2 gap-3" id="prodStockGroup">
+            <div class="border-t border-border-subtle pt-3 dark:border-slate-800">
+                <label for="hasWholesale" class="flex min-h-11 items-center gap-2 font-semibold cursor-pointer">
+                    <input type="checkbox" id="hasWholesale" name="has_wholesale" value="1" class="h-4 w-4 accent-blue-600 focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400">
+                    <span>Aktifkan harga grosir</span>
+                </label>
+                <p class="text-slate-600 dark:text-slate-300">Potongan berlaku untuk setiap unit setelah jumlah minimum tercapai.</p>
+                <fieldset id="wholesaleFields" class="mt-3 grid grid-cols-2 gap-3" disabled hidden>
+                    <div>
+                        <label for="prodWholesaleType" class="mb-1 block font-semibold">Jenis harga grosir</label>
+                        <select id="prodWholesaleType" name="ws_discount_type" class="w-full min-h-11 rounded-xl border border-slate-500 bg-background-canvas px-3 py-2 focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-slate-800 dark:focus-visible:outline-blue-400">
+                            <option value="fixed_amount">Potongan per unit (Rp)</option>
+                            <option value="percentage">Potongan persen (%)</option>
+                            <option value="special_price">Harga khusus per unit (Rp)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="prodWholesaleMinQty" class="mb-1 block font-semibold">Minimum jumlah (unit)</label>
+                        <input type="number" id="prodWholesaleMinQty" name="ws_min_qty" value="2" min="2" step="1" class="w-full min-h-11 rounded-xl border border-slate-500 bg-background-canvas px-3 py-2 font-mono focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-slate-800 dark:focus-visible:outline-blue-400">
+                    </div>
+                    <div>
+                        <label for="prodWholesaleDiscount" id="prodWholesaleDiscountLabel" class="mb-1 block font-semibold">Potongan per unit (Rp)</label>
+                        <input type="number" id="prodWholesaleDiscount" name="ws_discount_value" value="0" min="0" step="1" class="w-full min-h-11 rounded-xl border border-slate-500 bg-background-canvas px-3 py-2 font-mono focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-slate-800 dark:focus-visible:outline-blue-400">
+                    </div>
+                    <p id="wholesalePricePreview" class="col-span-2 font-mono text-slate-700 dark:text-slate-200" aria-live="polite"></p>
+                </fieldset>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="font-semibold block text-text-main dark:text-white mb-1">Stok Awal</label>
-                    <input type="number" id="prodStock" value="0" class="w-full px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-main dark:text-white font-mono outline-none focus:border-blue-500">
+                    <label for="prodStock" id="prodStockLabel" class="font-semibold block mb-1">Stok Awal</label>
+                    <input type="number" id="prodStock" name="stock" value="0" min="0" class="w-full min-h-11 px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-slate-500 font-mono focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400">
                 </div>
                 <div>
-                    <label class="font-semibold block text-text-main dark:text-white mb-1">Batas Minimal Stok</label>
-                    <input type="number" id="prodMinStock" value="5" class="w-full px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-main dark:text-white font-mono outline-none focus:border-blue-500">
+                    <label for="prodMinStock" class="font-semibold block mb-1">Batas Minimal Stok</label>
+                    <input type="number" id="prodMinStock" name="min_stock" value="5" min="0" class="w-full min-h-11 px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-slate-500 font-mono focus-visible:outline-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400">
                 </div>
             </div>
-            <div class="flex items-center justify-end gap-2 pt-3 border-t border-border-subtle dark:border-slate-800 mt-2">
-                <button type="button" onclick="closeModal('productModal')" class="px-3.5 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-muted hover:text-text-main dark:hover:text-white font-semibold cursor-pointer">Batal</button>
-                <button type="submit" id="saveProdBtn" class="px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold shadow-xs cursor-pointer">Simpan Produk</button>
+            <div class="min-w-0 border-t border-border-subtle pt-3 dark:border-slate-800">
+                <label for="prodImage" class="mb-1 block font-semibold">Gambar Produk (Opsional)</label>
+                <p id="prodImageHelp" class="mb-2 text-slate-600 dark:text-slate-300">JPG/JPEG, PNG, atau WebP. Maksimal 2 MB.</p>
+                <input type="file" id="prodImage" name="image" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" aria-describedby="prodImageHelp prodImageError"
+                    class="block w-full min-w-0 rounded-xl border border-slate-500 bg-background-canvas text-slate-800 file:mr-2 file:min-h-11 file:cursor-pointer file:border-0 file:bg-slate-200 file:px-3 file:font-semibold file:text-slate-900 hover:file:bg-slate-300 focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-slate-800 dark:text-slate-100 dark:file:bg-slate-700 dark:file:text-slate-100 dark:hover:file:bg-slate-600 dark:focus-visible:outline-blue-400">
+                <p id="prodImageError" class="mt-1 font-semibold text-red-700 empty:hidden dark:text-red-300" role="alert"></p>
+                <div class="mt-2 flex flex-wrap items-center gap-3">
+                    <img id="prodImagePreview" alt="Pratinjau gambar pilihan" width="80" height="80" class="h-20 w-20 rounded-lg border border-border-subtle bg-white object-contain p-1" hidden>
+                    <button type="button" id="clearProdImage" class="min-h-11 rounded-lg px-2 font-semibold text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-blue-600 dark:text-blue-300 dark:focus-visible:outline-blue-400 cursor-pointer" hidden>Hapus pilihan gambar</button>
+                </div>
             </div>
-        </form>
-    </div>
-</div>
+        </fieldset>
+        </div>
+        <div class="shrink-0 border-t border-border-subtle px-4 py-3 dark:border-slate-800 sm:px-6">
+            <p id="prodFormError" class="mb-2 break-words font-semibold text-red-700 empty:hidden dark:text-red-300" role="alert"></p>
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="productModal.close()" class="min-h-11 rounded-xl border border-slate-500 bg-background-canvas px-3.5 font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:focus-visible:outline-blue-400 cursor-pointer">Batal</button>
+                <button type="submit" id="saveProdBtn" class="min-h-11 rounded-xl bg-primary px-4 font-semibold text-white hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus-visible:outline-blue-400 disabled:cursor-wait cursor-pointer">Simpan Produk</button>
+            </div>
+        </div>
+    </form>
+</dialog>
 
 <!-- Modal: Input Mutasi (Masuk/Keluar) -->
 <div id="adjustStockModal" class="modal-backdrop hidden fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
@@ -459,11 +513,11 @@
         <form onsubmit="submitCategory(event)" class="flex flex-col gap-3 text-xs">
             @csrf
             <div>
-                <label class="font-semibold block text-text-main dark:text-white mb-1">Nama Kategori *</label>
+                <label for="catName" class="font-semibold block text-text-main dark:text-white mb-1">Nama Kategori *</label>
                 <input type="text" id="catName" class="w-full px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-main dark:text-white outline-none focus:border-blue-500" required>
             </div>
             <div>
-                <label class="font-semibold block text-text-main dark:text-white mb-1">Deskripsi</label>
+                <label for="catDesc" class="font-semibold block text-text-main dark:text-white mb-1">Deskripsi</label>
                 <textarea id="catDesc" rows="2" class="w-full px-3 py-2 rounded-xl bg-background-canvas dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-text-main dark:text-white outline-none focus:border-blue-500"></textarea>
             </div>
             <div class="flex items-center justify-end gap-2 pt-3 border-t border-border-subtle dark:border-slate-800 mt-2">
@@ -492,20 +546,116 @@
 
 @push('scripts')
 <script>
-function openProductModal() {
-    document.getElementById('prodId').value = '';
-    document.getElementById('prodSku').value = '';
-    document.getElementById('prodBarcode').value = '';
-    document.getElementById('prodName').value = '';
-    document.getElementById('prodCategory').value = '';
-    document.getElementById('prodUnit').value = 'pcs';
-    document.getElementById('prodCost').value = '0';
-    document.getElementById('prodRetail').value = '0';
-    document.getElementById('prodStock').value = '0';
-    document.getElementById('prodMinStock').value = '5';
-    document.getElementById('prodModalTitle').textContent = 'Tambah Produk Baru';
-    openModal('productModal');
+const productModal = document.getElementById('productModal');
+const productForm = document.getElementById('productForm');
+const productImage = document.getElementById('prodImage');
+const productImagePreview = document.getElementById('prodImagePreview');
+const productImageClear = document.getElementById('clearProdImage');
+const productFormError = document.getElementById('prodFormError');
+const productSave = document.getElementById('saveProdBtn');
+let productPreviewUrl = null;
+
+function openProductModal(values = {}) {
+    if (productSave.disabled) return;
+    productForm.reset();
+    updateProductPreview();
+    productFormError.textContent = '';
+    const editing = Boolean(values.id);
+    for (const field of ['id', 'sku', 'barcode', 'name', 'category_id', 'unit', 'cost_price', 'retail_price', 'min_stock', 'stock']) {
+        if (editing) productForm.elements.namedItem(field).value = values[field] ?? '';
+    }
+    document.getElementById('hasWholesale').checked = editing && values.wholesale_enabled === '1';
+    document.getElementById('prodWholesaleMinQty').value = editing ? values.wholesale_min_qty : 2;
+    document.getElementById('prodWholesaleType').value = editing ? values.wholesale_discount_type : 'fixed_amount';
+    document.getElementById('prodWholesaleDiscount').value = editing ? values.wholesale_discount_value : 0;
+    updateWholesaleFields();
+    productForm.elements.namedItem('stock').readOnly = editing;
+    document.getElementById('prodStockLabel').textContent = editing ? 'Stok Saat Ini (Opname untuk ubah)' : 'Stok Awal';
+    document.getElementById('prodModalTitle').textContent = editing ? 'Edit Produk' : 'Tambah Produk Baru';
+    productModal.showModal();
 }
+
+function updateWholesaleFields() {
+    const enabled = document.getElementById('hasWholesale').checked;
+    const fields = document.getElementById('wholesaleFields');
+    fields.disabled = !enabled;
+    fields.hidden = !enabled;
+    updateWholesalePricePreview();
+}
+
+function updateWholesalePricePreview() {
+    const retail = Number(document.getElementById('prodRetail').value || 0);
+    const value = Number(document.getElementById('prodWholesaleDiscount').value || 0);
+    const type = document.getElementById('prodWholesaleType').value;
+    const minimum = Number(document.getElementById('prodWholesaleMinQty').value || 0);
+    const unit = document.getElementById('prodUnit').value || 'unit';
+    const discount = type === 'percentage' ? retail * value / 100 : type === 'special_price' ? Math.max(0, retail - value) : value;
+    const price = Math.max(0, retail - discount);
+    const label = document.getElementById('prodWholesaleDiscountLabel');
+    const input = document.getElementById('prodWholesaleDiscount');
+    label.textContent = type === 'percentage' ? 'Potongan (%)' : type === 'special_price' ? 'Harga khusus per unit (Rp)' : 'Potongan per unit (Rp)';
+    input.step = type === 'percentage' ? '0.01' : '1';
+    input.max = type === 'percentage' ? '100' : type === 'fixed_amount' ? String(retail) : '';
+    document.getElementById('wholesalePricePreview').textContent = `Harga grosir: Rp ${price.toLocaleString('id-ID')} / ${unit}, mulai ${minimum} ${unit}`;
+}
+
+document.getElementById('hasWholesale').addEventListener('change', updateWholesaleFields);
+document.getElementById('prodWholesaleMinQty').addEventListener('input', updateWholesalePricePreview);
+document.getElementById('prodWholesaleDiscount').addEventListener('input', updateWholesalePricePreview);
+document.getElementById('prodWholesaleType').addEventListener('change', updateWholesalePricePreview);
+
+document.getElementById('prodRetail').addEventListener('input', updateWholesalePricePreview);
+document.getElementById('prodUnit').addEventListener('input', updateWholesalePricePreview);
+
+function showProductImageError(message) {
+    document.getElementById('prodImageError').textContent = message;
+    productImage.setAttribute('aria-invalid', message ? 'true' : 'false');
+}
+
+function updateProductPreview() {
+    if (productPreviewUrl) URL.revokeObjectURL(productPreviewUrl);
+    productPreviewUrl = null;
+    productImagePreview.hidden = true;
+    productImagePreview.removeAttribute('src');
+    const file = productImage.files[0];
+    productImageClear.hidden = !file;
+
+    let error = '';
+    if (file?.size > 2 * 1024 * 1024) {
+        error = 'Ukuran gambar maksimal 2 MB. Pilih file yang lebih kecil.';
+    } else if (file && !/\.(jpe?g|png|webp)$/i.test(file.name) && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        error = 'Pilih gambar JPG/JPEG, PNG, atau WebP.';
+    }
+    productImage.setCustomValidity(error);
+    showProductImageError(error);
+    if (!file || error) return;
+
+    productPreviewUrl = URL.createObjectURL(file);
+    productImagePreview.src = productPreviewUrl;
+    productImagePreview.hidden = false;
+}
+
+productImage.addEventListener('change', updateProductPreview);
+productImagePreview.addEventListener('error', () => {
+    if (!productPreviewUrl) return;
+    productImagePreview.hidden = true;
+    const message = 'Gambar tidak dapat dibuka. Pilih gambar lain.';
+    productImage.setCustomValidity(message);
+    showProductImageError(message);
+});
+productImageClear.addEventListener('click', () => {
+    productImage.value = '';
+    updateProductPreview();
+    productImage.focus();
+});
+productModal.addEventListener('cancel', (event) => {
+    if (productSave.disabled) event.preventDefault();
+});
+productModal.addEventListener('close', () => {
+    if (productModal.open) return;
+    productImage.value = '';
+    updateProductPreview();
+});
 
 function openAdjustStockModal() {
     const form = document.getElementById('adjustStockForm');
@@ -623,36 +773,65 @@ async function openStockHistoryModal(id, name, unit) {
 
 async function submitProductForm(e) {
     e.preventDefault();
-    const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    const payload = {
-        id: document.getElementById('prodId').value,
-        sku: document.getElementById('prodSku').value,
-        barcode: document.getElementById('prodBarcode').value,
-        name: document.getElementById('prodName').value,
-        category_id: document.getElementById('prodCategory').value,
-        unit: document.getElementById('prodUnit').value,
-        cost_price: document.getElementById('prodCost').value,
-        retail_price: document.getElementById('prodRetail').value,
-        stock: document.getElementById('prodStock').value,
-        min_stock: document.getElementById('prodMinStock').value,
-    };
+    if (productSave.disabled) return;
+    const payload = new FormData(productForm);
+    if (!productImage.files.length) payload.delete('image');
+    if (payload.get('id')) payload.delete('stock');
+    const fields = document.getElementById('productInputs');
+    const cancelButtons = productForm.querySelectorAll('button[onclick="productModal.close()"]');
+    fields.disabled = true;
+    cancelButtons.forEach(button => button.disabled = true);
+    productSave.disabled = true;
+    productSave.textContent = 'Menyimpan…';
+    productFormError.textContent = '';
+    showProductImageError('');
+    let focusImage = false;
+    let saved = false;
 
     try {
-        const resp = await fetch('{{ route("inventory.storeProduct") }}', {
-            method: 'POST',
+        const resp = await fetch(productForm.action, {
+            method: productForm.method,
             headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': token
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': payload.get('_token'),
             },
-            body: JSON.stringify(payload)
+            body: payload,
         });
-        const res = await resp.json();
-        if (!res.success) throw new Error(res.message);
-        showToast(res.message, 'success');
-        closeModal('productModal');
+        const res = await resp.json().catch(() => null);
+        if (resp.status === 422 && res?.errors) {
+            const { image, ...otherErrors } = res.errors;
+            if (image?.length) {
+                showProductImageError(image[0]);
+                focusImage = true;
+            }
+            productFormError.textContent = Object.values(otherErrors).flat().join(' ');
+            return;
+        }
+        if (resp.status === 413) {
+            showProductImageError('File melebihi batas unggah server. Pilih gambar yang lebih kecil.');
+            focusImage = true;
+            return;
+        }
+        if (!resp.ok || !res?.success) {
+            productFormError.textContent = resp.status === 419 || resp.status === 401
+                ? 'Sesi berakhir. Muat ulang halaman lalu coba lagi.'
+                : 'Produk gagal disimpan. Silakan coba lagi.';
+            return;
+        }
+        saved = true;
+        productModal.close();
+        showToast('Data produk berhasil disimpan.', 'success');
         setTimeout(() => window.location.reload(), 800);
-    } catch (err) {
-        showToast('Error: ' + err.message, 'error');
+    } catch {
+        productFormError.textContent = 'Koneksi terputus. Periksa koneksi lalu coba lagi.';
+    } finally {
+        if (!saved) {
+            fields.disabled = false;
+            cancelButtons.forEach(button => button.disabled = false);
+            productSave.disabled = false;
+            productSave.textContent = 'Simpan Produk';
+            if (focusImage) productImage.focus();
+        }
     }
 }
 

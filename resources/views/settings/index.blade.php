@@ -155,7 +155,7 @@
 
                 <!-- Live Simulator & QR Preview Tool -->
                 <div class="lg:col-span-5 flex flex-col gap-3">
-                    <div class="p-4 rounded-2xl bg-gradient-to-b from-blue-50/70 to-background-canvas dark:from-slate-800 dark:to-slate-900 border border-blue-200 dark:border-slate-700 flex flex-col items-center gap-3 shadow-2xs">
+                    <div class="p-4 rounded-2xl bg-blue-50 dark:bg-slate-800 border border-blue-200 dark:border-slate-700 flex flex-col items-center gap-3 shadow-2xs">
                         <div class="flex items-center justify-between w-full">
                             <span class="text-[11px] font-bold text-blue-900 dark:text-blue-300 uppercase tracking-wider">Simulator Scan QRIS</span>
                             <span class="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">Siap Scan</span>
@@ -163,7 +163,7 @@
 
                         <!-- Sample Nominal Input -->
                         <div class="w-full bg-surface-white dark:bg-slate-800 p-2.5 rounded-xl border border-border-subtle dark:border-slate-700 flex items-center justify-between gap-2">
-                            <span class="text-[11px] text-text-muted font-medium">Uji Coba Nominal:</span>
+                            <label for="testQrisAmount" class="text-[11px] text-text-muted font-medium">Uji Coba Nominal (Rp):</label>
                             <div class="flex items-center gap-1 font-mono font-bold text-xs">
                                 <span>Rp</span>
                                 <input type="number" id="testQrisAmount" value="50000" step="5000" class="w-24 text-right font-mono font-bold bg-background-canvas dark:bg-slate-900 px-2 py-1 rounded-lg border border-border-subtle dark:border-slate-700 text-text-main dark:text-white outline-none focus:border-blue-500" oninput="updateLiveQrisPreview()">
@@ -227,13 +227,13 @@
                     <div>
                         <span class="text-[11px] font-bold text-text-muted uppercase tracking-wider block mb-2">Pilihan Cepat Standar Tenor:</span>
                         <div class="flex flex-wrap items-center gap-2" id="dueDaysPresetContainer">
-                            <button type="button" class="due-preset-btn px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer {{ ($settings['default_due_days'] ?? '14') == '7' ? 'bg-amber-500 text-white border-amber-600 shadow-xs font-bold' : 'bg-background-canvas dark:bg-slate-800 border-border-subtle dark:border-slate-700 text-text-main dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600' }}" onclick="selectDueDays(7, this)">
+                            <button type="button" class="due-preset-btn px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer {{ ($settings['default_due_days'] ?? '14') == '7' ? 'bg-amber-500 text-slate-900 border-slate-900 shadow-xs font-bold' : 'bg-background-canvas dark:bg-slate-800 border-border-subtle dark:border-slate-700 text-text-main dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600' }}" onclick="selectDueDays(7, this)">
                                 7 Hari (1 Minggu)
                             </button>
-                            <button type="button" class="due-preset-btn px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer {{ ($settings['default_due_days'] ?? '14') == '14' ? 'bg-amber-500 text-white border-amber-600 shadow-xs font-bold' : 'bg-background-canvas dark:bg-slate-800 border-border-subtle dark:border-slate-700 text-text-main dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600' }}" onclick="selectDueDays(14, this)">
+                            <button type="button" class="due-preset-btn px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer {{ ($settings['default_due_days'] ?? '14') == '14' ? 'bg-amber-500 text-slate-900 border-slate-900 shadow-xs font-bold' : 'bg-background-canvas dark:bg-slate-800 border-border-subtle dark:border-slate-700 text-text-main dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600' }}" onclick="selectDueDays(14, this)">
                                 14 Hari (2 Minggu / Standar)
                             </button>
-                            <button type="button" class="due-preset-btn px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer {{ ($settings['default_due_days'] ?? '14') == '30' ? 'bg-amber-500 text-white border-amber-600 shadow-xs font-bold' : 'bg-background-canvas dark:bg-slate-800 border-border-subtle dark:border-slate-700 text-text-main dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600' }}" onclick="selectDueDays(30, this)">
+                            <button type="button" class="due-preset-btn px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer {{ ($settings['default_due_days'] ?? '14') == '30' ? 'bg-amber-500 text-slate-900 border-slate-900 shadow-xs font-bold' : 'bg-background-canvas dark:bg-slate-800 border-border-subtle dark:border-slate-700 text-text-main dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600' }}" onclick="selectDueDays(30, this)">
                                 30 Hari (1 Bulan)
                             </button>
                         </div>
@@ -321,7 +321,7 @@
                                 <span>Beras Ramos Super (5 Kg)</span>
                                 <span>65.000</span>
                             </div>
-                            <div class="flex justify-between text-slate-500">
+                            <div class="flex justify-between text-slate-700 dark:text-slate-200">
                                 <span>Minyak Goreng 2L x 2</span>
                                 <span>68.000</span>
                             </div>
@@ -433,6 +433,8 @@ function updateLiveQrisPreview() {
             colorLight: "#ffffff",
             correctLevel: QRCode.CorrectLevel.M
         });
+        const qrImage = canvas.querySelector('img');
+        if (qrImage) qrImage.alt = `Kode QRIS dinamis untuk nominal Rp ${amount.toLocaleString('id-ID')}`;
     } catch (e) {
         canvas.innerHTML = '<span class="text-xs text-red-500">QR Gagal: ' + e.message + '</span>';
     }
@@ -467,7 +469,7 @@ function syncDueDayButtons(val) {
         const text = b.textContent;
         const matches = text.includes(`${val} Hari`);
         if (matches) {
-            b.className = 'due-preset-btn px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer bg-amber-500 text-white border-amber-600 shadow-xs';
+            b.className = 'due-preset-btn px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer bg-amber-500 text-slate-900 border-slate-900 shadow-xs';
         } else {
             b.className = 'due-preset-btn px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-background-canvas dark:bg-slate-800 border-border-subtle dark:border-slate-700 text-text-main dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600';
         }

@@ -33,12 +33,12 @@
                     <span>Tambah Kasir</span>
                 </button>
             @endif
-            <button type="button" onclick="openAddUserModal('pembeli')" class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer">
+            <button type="button" onclick="openAddUserModal('pembeli')" class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold shadow-xs transition-all cursor-pointer">
                 <span class="material-symbols-outlined text-[18px]">person_add</span>
                 <span>Tambah Pembeli</span>
             </button>
             @if($userRole === 'owner')
-                <button type="button" onclick="openAddUserModal('gudang')" class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer">
+                <button type="button" onclick="openAddUserModal('gudang')" class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold shadow-xs transition-all cursor-pointer">
                     <span class="material-symbols-outlined text-[18px]">warehouse</span>
                     <span>Tambah Gudang</span>
                 </button>
@@ -503,7 +503,7 @@ function confirmToggleActive(userId, name, username, role, currentStatus) {
             <strong>Dampak Tindakan:</strong> Pengguna akan dapat segera login kembali dan menjalankan tugas operasional sesuai peran <strong>${role.toUpperCase()}</strong>.
         `;
 
-        confirmBtn.className = 'px-5 py-2.5 rounded-xl font-bold text-xs text-white shadow-xs bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer';
+        confirmBtn.className = 'px-5 py-2.5 rounded-xl font-bold text-xs text-white shadow-xs bg-emerald-800 hover:bg-emerald-900 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer';
         confirmBtnIcon.textContent = 'check_circle';
         confirmBtnText.textContent = 'Ya, Aktifkan Akun';
     }

@@ -1152,6 +1152,10 @@ html.dark .sidebar-footer select#roleSwitchSelect option {
     gap: 10px;
 }
 
+html.dark #paymentModal .modal-footer {
+    background-color: var(--bg-surface-low);
+}
+
 /* Forms */
 .form-group {
     margin-bottom: 14px;

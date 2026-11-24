@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Product extends Model
 {
@@ -14,6 +15,7 @@ class Product extends Model
         'sku',
         'barcode',
         'name',
+        'image_path',
         'unit',
         'cost_price',
         'retail_price',
@@ -29,6 +31,10 @@ class Product extends Model
 
     public function getImageUrlAttribute(): string
     {
+        if ($this->image_path && Storage::disk('public')->exists($this->image_path)) {
+            return asset('storage/' . $this->image_path);
+        }
+
         return asset('assets/produk/' . strtolower($this->sku) . '.webp');
     }
 

@@ -1199,6 +1199,12 @@ class PosEngine {
 
         this.catalogGrid.innerHTML = filtered.map(p => {
             const isOutOfStock = p.stock <= 0;
+            const wholesaleDiscount = p.wholesale_discount_type === 'percentage'
+                ? Number(p.retail_price || 0) * Number(p.wholesale_discount_value || 0) / 100
+                : p.wholesale_discount_type === 'special_price'
+                    ? Math.max(0, Number(p.retail_price || 0) - Number(p.wholesale_discount_value || 0))
+                    : Number(p.wholesale_discount_value || 0);
+            const wholesalePrice = Math.max(0, Number(p.retail_price || 0) - wholesaleDiscount);
             let stockBadge = 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60';
             if (p.stock <= 0) stockBadge = 'bg-red-50 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800/60';
             else if (p.stock <= p.min_stock) stockBadge = 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60';
@@ -1254,7 +1260,7 @@ class PosEngine {
                                     <span class="material-symbols-outlined text-[13px] shrink-0" aria-hidden="true">sell</span>
                                     <span class="truncate">&ge; ${p.wholesale_min_qty} ${escapeHtml(p.unit)}</span>
                                 </span>
-                                <span class="font-mono whitespace-nowrap shrink-0">@ ${formatRp(p.retail_price - p.wholesale_discount_value)}</span>
+                                <span class="font-mono whitespace-nowrap shrink-0">@ ${formatRp(p.wholesale_final_price ?? wholesalePrice)}</span>
                             </div>
                         ` : ''}
                     </div>
