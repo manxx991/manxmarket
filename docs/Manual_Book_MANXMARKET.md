@@ -4,7 +4,7 @@
 
 | Informasi dokumen | Keterangan |
 | --- | --- |
-| Status | Draf untuk ditinjau |
+| Status | Draf 0.2 — disesuaikan dengan source code pada 26 November 2026; perlu diuji pada penerapan toko |
 | Nama aplikasi | MANXMARKET POS & Grosir System |
 | Jenis aplikasi | Aplikasi web |
 | Pengguna | Owner, kasir, petugas gudang, pembeli, administrator |
@@ -99,12 +99,12 @@ MANXMARKET dibuat untuk membantu pengguna:
 
 | Komponen | Teknologi atau acuan source |
 | --- | --- |
-| Bahasa dan framework server | PHP 8.1 atau lebih baru sesuai batas `composer.json`, Laravel 10 |
+| Bahasa dan framework server | PHP 8.3 atau lebih baru sesuai batas `composer.json`, Laravel 13 |
 | Database | MySQL 8.x sesuai README proyek |
 | Tampilan | Blade, HTML, CSS, Tailwind CSS, JavaScript |
 | Pengelolaan aset | Vite dan npm, untuk membangun ulang aset frontend |
 | Autentikasi | Login berbasis sesi Laravel |
-| Server lokal untuk pengembangan | Laragon atau `php artisan serve` |
+| Server lokal untuk pengembangan | Laragon, `php artisan serve`, atau `start.bat` pada Windows |
 
 ### 1.5 Fitur-fitur yang tersedia
 
@@ -113,7 +113,7 @@ MANXMARKET dibuat untuk membantu pengguna:
 | POS | Memilih produk, mengatur kuantitas, menghitung total, memilih pelanggan, dan menyimpan transaksi |
 | Harga grosir | Menyediakan aturan harga atau potongan berdasarkan jumlah pembelian produk |
 | Pembayaran | Mencatat pembayaran tunai, QRIS, atau tempo sesuai data transaksi |
-| Inventaris | Menambah produk dan kategori, menyimpan gambar produk, mencari katalog, dan melihat stok |
+| Inventaris | Menambah produk dan kategori, menyimpan gambar JPG/JPEG/PNG/WebP maksimal 2 MB di `public/assets/produk/`, mencari katalog, dan melihat stok |
 | Mutasi stok | Mencatat stok masuk, koreksi stok, opname fisik, dan riwayat pergerakan |
 | Transaksi | Mencari nota berdasarkan kata kunci, rentang tanggal, status, atau metode pembayaran; mencetak ulang struk |
 | Void | Owner dapat membatalkan transaksi dengan alasan; catatan transaksi tetap tersimpan |
@@ -143,15 +143,61 @@ Source code proyek berada di folder instalasi MANXMARKET. Bagian yang perlu dike
 | `routes/web.php` | Rute halaman web dan endpoint aplikasi |
 | `resources/views/` | Tampilan Blade |
 | `resources/css/` dan `resources/js/` | Source aset frontend |
-| `public/` | Aset yang disajikan web server |
+| `public/` | Aset yang disajikan web server; gambar produk unggahan baru ada di `public/assets/produk/` |
 | `database/migrations/` | Definisi skema database |
 | `database/seeders/` | Seeder akun awal |
+| `start.bat` | Peluncur server pengembangan lokal Windows; tidak memasang dependensi atau mengatur database |
+| `backup.bat` | Contoh skrip backup MySQL Windows yang path dan jadwalnya harus diperiksa sebelum dipakai |
+| Backup SQL | Data operasional privat, disimpan di luar repository dan tidak disertakan saat clone |
 | `.env.example` | Contoh nama konfigurasi lingkungan |
 | `composer.json` dan `composer.lock` | Dependensi PHP |
 | `package.json` dan `package-lock.json` | Script dan dependensi build frontend |
 | `README.md` | Ringkasan fitur dan acuan teknologi proyek |
 
-Source tidak mencantumkan tautan repository publik. Administrator proyek perlu memberikan URL repository atau paket source resmi kepada petugas instalasi melalui kanal yang sesuai.
+Repository yang tercatat sebagai `origin` adalah `https://github.com/manxx991/manxmarket.git`. Pastikan akses repository diberikan oleh administrator; jangan mengirim `.env`, dump database, atau kredensial bersama source code.
+
+#### Diagram struktur folder proyek
+
+Diagram berikut menunjukkan komponen utama, bukan seluruh file Laravel:
+
+```text
+MANXMARKET/
+├── app/
+│   ├── Http/Controllers/
+│   ├── Models/
+│   ├── Providers/
+│   └── Services/
+├── bootstrap/
+├── config/
+├── database/
+│   ├── factories/
+│   ├── migrations/
+│   ├── seeders/
+│   └── backups/
+├── docs/
+├── public/
+│   └── assets/
+│       ├── js/
+│       └── produk/
+├── resources/
+│   ├── css/
+│   ├── js/
+│   └── views/
+├── routes/
+├── storage/
+├── tests/Feature/
+├── node_modules/
+├── vendor/
+├── .env.example
+├── artisan
+├── backup.bat
+├── composer.json
+├── package.json
+├── phpunit.xml
+└── start.bat
+```
+
+Folder `app/` berisi controller, model, layanan bisnis, dan provider; `database/` memuat migration, seeder, serta salinan lokal; `resources/views/` memuat tampilan Blade. Gambar produk baru berada di `public/assets/produk/`. `vendor/` dan `node_modules/` dibuat oleh Composer/npm. `database/backups/` adalah folder lokal yang dapat memuat data sensitif dan tidak boleh diunggah ke repositori.
 
 ### 2.2 Persiapan instalasi
 
@@ -169,10 +215,10 @@ Salin `.env.example` menjadi `.env` hanya untuk instalasi baru. Jangan menimpa `
 
 ### 2.3 Instalasi pada komputer lokal
 
-Contoh ini menggunakan Windows dan Laragon. Pastikan folder proyek sudah tersedia pada komputer.
+Contoh ini menggunakan Windows. Pastikan PHP, Composer, Node.js/npm, dan MySQL/MariaDB sudah terpasang.
 
-1. Jalankan Laragon, lalu hidupkan Apache dan MySQL.
-2. Letakkan source code pada folder web Laragon, misalnya `D:\laragon\www\manxmarket`.
+1. Jalankan Apache dan MySQL/MariaDB melalui stack lokal yang Anda gunakan.
+2. Letakkan source code pada direktori proyek di komputer.
 3. Buka terminal pada folder proyek.
 4. Pasang dependensi PHP:
 
@@ -209,6 +255,8 @@ Contoh ini menggunakan Windows dan Laragon. Pastikan folder proyek sudah tersedi
    ```powershell
    php artisan serve
    ```
+
+   Di Windows, `start.bat` pada root proyek dapat dipakai sebagai alternatif untuk memulai server pengembangan pada `http://127.0.0.1:8000`. Script ini hanya berjalan setelah `composer install` menyiapkan `vendor/autoload.php` dan PHP dapat ditemukan. Script tidak membuat `.env`, database, `APP_KEY`, akun, atau aset build. Biarkan jendela server tetap terbuka; alamat loopback hanya untuk komputer itu sendiri dan bukan server produksi.
 
 13. Buka alamat lokal aplikasi di browser dan masuk menggunakan akun yang sudah disiapkan.
 
@@ -255,6 +303,18 @@ Jika database bernama sama sudah ada, jangan menimpa atau menghapus isinya. Peri
 7. Pastikan aplikasi dapat membuka halaman login dan membaca data database.
 
 Jangan mengimpor `docs/schema.sql` ke database produksi tanpa meninjau isinya. File tersebut dapat berisi perintah penghapusan tabel.
+
+#### Pemulihan dari backup database
+
+Gunakan backup privat yang disediakan administrator. Backup dapat memuat kredensial pengguna dan riwayat transaksi; jangan simpan atau publikasikan dump bersama source. Pulihkan hanya ke database kosong yang sudah diverifikasi, samakan `DB_DATABASE` di `.env`, dan simpan `APP_KEY` asal bila perlu membaca data terenkripsi.
+
+Impor melalui phpMyAdmin atau gunakan klien MySQL:
+
+```text
+mysql -h DB_HOST -u DB_USER -p DB_DATABASE < /path/to/private-backup.sql
+```
+
+Ganti placeholder sesuai konfigurasi server. Bila backup sudah berisi tabel, migration, dan data, jangan jalankan `php artisan migrate` atau `php artisan db:seed` pada alur pemulihan. Backup SQL tidak menyertakan gambar produk; pindahkan file unggahan terpisah.
 
 ### 2.6 Pembuatan akun awal
 
@@ -435,9 +495,9 @@ Kasir tidak menetapkan limit kredit. Minta owner mengatur kelayakan kredit melal
 1. Pada halaman inventaris, pilih **Tambah Produk**.
 2. Isi SKU, nama produk, harga jual, harga modal bila dicatat, satuan, dan kategori.
 3. Isi barcode, stok awal, dan batas minimum stok bila diperlukan.
-4. Jika menambahkan gambar, gunakan format JPG, JPEG, PNG, atau WebP dengan ukuran maksimal 2 MB.
-5. Untuk produk grosir, aktifkan aturan grosir dan isi jumlah minimum serta jenis/nilai harga atau potongannya.
-6. Periksa kembali data, lalu simpan.
+4. Untuk produk grosir, aktifkan aturan grosir dan isi jumlah minimum serta jenis/nilai harga atau potongannya.
+5. Jika menambahkan gambar, gunakan JPG/JPEG, PNG, atau WebP maksimal 2 MB. Gambar baru disimpan di `public/assets/produk/` dan dapat diakses melalui web; jangan unggah gambar yang memuat data pribadi atau informasi internal.
+6. Periksa kembali data, lalu simpan. Saat memindahkan aplikasi, salin folder gambar unggahan secara terpisah dari database.
 
 Saat mengedit produk, ubah jumlah persediaan melalui fungsi mutasi atau opname, bukan dengan mengubah kolom stok pada form edit.
 
@@ -524,7 +584,7 @@ Gunakan browser desktop dengan ukuran jendela yang sama untuk semua gambar agar 
 | `05-riwayat-transaksi.png` | Buka menu transaksi | Pencarian/filter dan daftar nota | Samarkan nomor nota dan nama |
 | `06-buku-piutang.png` | Buka menu piutang | Daftar tagihan, status, sisa utang | Gunakan akun pelanggan contoh |
 | `07-inventaris-produk.png` | Login gudang atau owner, buka inventaris | Ringkasan stok, pencarian, daftar produk | Gunakan katalog contoh |
-| `08-form-produk.png` | Buka form tambah/edit produk | SKU, nama, harga, gambar, aturan grosir | Jangan tampilkan data dagang sensitif |
+| `08-form-produk.png` | Buka form tambah/edit produk | SKU, nama, harga, gambar, aturan grosir | Jangan tampilkan data dagang sensitif; gambar unggahan baru tersimpan di `public/assets/produk/` |
 | `09-penyesuaian-stok.png` | Buka form mutasi/opname | Produk, jumlah, kolom catatan | Gunakan data stok uji |
 | `10-manajemen-akun.png` | Login owner, buka manajemen akun | Daftar akun dan pilihan peran | Tutup atau samarkan username dan telepon |
 | `11-pengaturan-toko.png` | Login owner, buka pengaturan | Nama/alamat toko dan footer struk | Samarkan alamat, nomor telepon, payload QRIS |

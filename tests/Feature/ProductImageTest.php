@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class ProductImageTest extends TestCase
@@ -19,22 +20,24 @@ class ProductImageTest extends TestCase
     {
         parent::setUp();
         Storage::fake('public');
+        Storage::fake('product_assets');
         $this->actingAs(User::factory()->create(['role' => 'owner', 'is_active' => 1]));
     }
 
-    /** @dataProvider acceptedFormats */
+    #[DataProvider('acceptedFormats')]
     public function test_product_upload_stores_random_path_and_returns_public_url(string $format, int $size): void
     {
         $file = $this->image($format)->size($size);
         $response = $this->saveProduct(['image' => $file])->assertOk()->assertJson(['success' => true]);
         $path = $response->json('product.image_path');
         $this->assertIsString($path);
-        $this->assertMatchesRegularExpression('/^products\/[A-Za-z0-9]{40}\.(?:jpe?g|png|webp)$/', $path);
-        Storage::disk('public')->assertExists($path);
-        $this->assertSame($file->get(), Storage::disk('public')->get($path));
+        $this->assertStringStartsWith('assets/produk/', $path);
+        Storage::disk('product_assets')->assertExists($path);
+        $this->assertSame($file->get(), Storage::disk('product_assets')->get($path));
         $this->assertDatabaseHas('products', ['sku' => 'PHOTO-01', 'image_path' => $path]);
-        $this->assertSame(asset('storage/' . $path), $response->json('product.image_url'));
+        $this->assertSame(asset($path), $response->json('product.image_url'));
     }
+
 
     public static function acceptedFormats(): array
     {
@@ -50,7 +53,7 @@ class ProductImageTest extends TestCase
             $this->saveProduct(['image' => $file])->assertUnprocessable()->assertJsonValidationErrors('image');
         }
         $this->assertDatabaseCount('products', 0);
-        Storage::disk('public')->assertDirectoryEmpty('products');
+        $this->assertSame([], Storage::disk('product_assets')->allFiles());
     }
 
     public function test_rejects_upload_larger_than_two_megabytes(): void
@@ -58,14 +61,14 @@ class ProductImageTest extends TestCase
         $this->saveProduct(['image' => $this->image()->size(2049)])
             ->assertUnprocessable()->assertJsonPath('errors.image.0', 'Ukuran gambar maksimal 2 MB.');
         $this->assertDatabaseCount('products', 0);
-        Storage::disk('public')->assertDirectoryEmpty('products');
+        $this->assertSame([], Storage::disk('product_assets')->allFiles());
     }
 
     public function test_product_without_image_stores_null_and_ignores_client_path(): void
     {
         $this->saveProduct(['image_path' => 'products/not-uploaded.png'])->assertOk();
         $this->assertDatabaseHas('products', ['sku' => 'PHOTO-01', 'image_path' => null]);
-        Storage::disk('public')->assertDirectoryEmpty('products');
+        $this->assertSame([], Storage::disk('product_assets')->allFiles());
     }
 
     public function test_uploaded_image_url_uses_current_host_instead_of_configured_localhost(): void
@@ -117,8 +120,8 @@ class ProductImageTest extends TestCase
 
         $this->assertNotSame($product['image_path'], $replacement);
         $this->assertDatabaseHas('products', ['id' => $product['id'], 'image_path' => $replacement]);
-        Storage::disk('public')->assertExists($replacement);
-        Storage::disk('public')->assertMissing($product['image_path']);
+        Storage::disk('product_assets')->assertExists($replacement);
+        Storage::disk('product_assets')->assertMissing($product['image_path']);
         $this->assertSame($legacyHash, hash_file('sha256', $legacyFile));
     }
 
@@ -135,7 +138,7 @@ class ProductImageTest extends TestCase
             'id' => $product['id'], 'name' => 'Nama Baru', 'stock' => 3, 'image_path' => $product['image_path'],
         ]);
         $this->assertDatabaseHas('wholesale_rules', ['product_id' => $product['id'], 'discount_value' => 1000]);
-        Storage::disk('public')->assertExists($product['image_path']);
+        Storage::disk('product_assets')->assertExists($product['image_path']);
     }
 
     public function test_invalid_wholesale_rule_creates_no_image_or_product(): void
@@ -145,7 +148,7 @@ class ProductImageTest extends TestCase
             'ws_min_qty' => 2, 'ws_discount_type' => 'percentage', 'ws_discount_value' => 101,
         ])->assertUnprocessable()->assertJsonValidationErrors('ws_discount_value');
         $this->assertDatabaseCount('products', 0);
-        Storage::disk('public')->assertDirectoryEmpty('products');
+        $this->assertSame([], Storage::disk('product_assets')->allFiles());
     }
 
     public function test_rejected_replacement_keeps_old_file_and_product(): void
@@ -154,7 +157,7 @@ class ProductImageTest extends TestCase
         $this->saveProduct(['id' => $product['id'], 'image' => $this->image('gif')])
             ->assertUnprocessable()->assertJsonValidationErrors('image');
         $this->assertDatabaseHas('products', ['id' => $product['id'], 'image_path' => $product['image_path']]);
-        $this->assertSame([$product['image_path']], Storage::disk('public')->allFiles('products'));
+        $this->assertSame([$product['image_path']], Storage::disk('product_assets')->allFiles('assets/produk'));
     }
 
     public function test_only_inventory_roles_can_upload_images(): void
@@ -162,12 +165,12 @@ class ProductImageTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => 'kasir', 'is_active' => 1]));
         $this->saveProduct(['image' => $this->image()])->assertForbidden();
         $this->assertDatabaseCount('products', 0);
-        Storage::disk('public')->assertDirectoryEmpty('products');
+        $this->assertSame([], Storage::disk('product_assets')->allFiles());
         $this->actingAs(User::factory()->create(['role' => 'gudang', 'is_active' => 1]));
         $this->saveProduct(['image' => $this->image()])->assertOk();
     }
 
-    /** @dataProvider productWriteModes */
+    #[DataProvider('productWriteModes')]
     public function test_database_failure_cleans_new_image_and_keeps_previous_upload(bool $updating): void
     {
         $product = $this->saveProduct(['image' => $this->image()])->assertOk()->json('product');
@@ -193,7 +196,7 @@ class ProductImageTest extends TestCase
         ]);
         $this->assertDatabaseCount('products', 1);
         $this->assertDatabaseCount('stock_movements', 0);
-        $this->assertSame([$product['image_path']], Storage::disk('public')->allFiles('products'));
+        $this->assertSame([$product['image_path']], Storage::disk('product_assets')->allFiles('assets/produk'));
     }
 
     public static function productWriteModes(): array

@@ -31,6 +31,11 @@ class Product extends Model
 
     public function getImageUrlAttribute(): string
     {
+        if ($this->image_path && str_starts_with($this->image_path, 'assets/produk/')
+            && Storage::disk('product_assets')->exists($this->image_path)) {
+            return asset($this->image_path);
+        }
+
         if ($this->image_path && Storage::disk('public')->exists($this->image_path)) {
             return asset('storage/' . $this->image_path);
         }

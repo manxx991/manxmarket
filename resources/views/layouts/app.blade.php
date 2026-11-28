@@ -22,7 +22,7 @@
     <!-- Structured Data (JSON-LD) for SEO & Agentic Browsing -->
     <script type="application/ld+json">
     {
-        "@context": "https://schema.org",
+        "{{ '@context' }}": "https://schema.org",
         "@type": "SoftwareApplication",
         "name": "MANXMARKET POS & Grosir",
         "applicationCategory": "BusinessApplication",

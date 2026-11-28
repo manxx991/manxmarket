@@ -7,6 +7,7 @@ use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class SecurityAuditTest extends TestCase
@@ -30,7 +31,7 @@ class SecurityAuditTest extends TestCase
         ]);
     }
 
-    /** @dataProvider blankSeedPasswords */
+    #[DataProvider('blankSeedPasswords')]
     public function test_seeder_requires_secret_before_creating_any_account($password): void
     {
         config(['auth.seed_default_password' => $password]);
@@ -85,7 +86,7 @@ class SecurityAuditTest extends TestCase
         $this->assertNotSame($first->password, $second->password);
     }
 
-    /** @dataProvider duplicateCartAliases */
+    #[DataProvider('duplicateCartAliases')]
     public function test_checkout_rejects_duplicate_canonical_products_before_any_write(string $firstKey, string $secondKey): void
     {
         $before = $this->checkoutState();
@@ -104,7 +105,7 @@ class SecurityAuditTest extends TestCase
         return [['id', 'id'], ['product_id', 'product_id'], ['id', 'product_id']];
     }
 
-    /** @dataProvider invalidCartIntegers */
+    #[DataProvider('invalidCartIntegers')]
     public function test_checkout_rejects_invalid_integer_fields_without_silently_skipping($field, $value): void
     {
         $before = $this->checkoutState();
@@ -141,7 +142,7 @@ class SecurityAuditTest extends TestCase
         ]);
     }
 
-    /** @dataProvider invalidServicePayments */
+    #[DataProvider('invalidServicePayments')]
     public function test_service_rejects_invalid_paid_amounts_before_writes($paid): void
     {
         $before = $this->checkoutState();
@@ -157,7 +158,7 @@ class SecurityAuditTest extends TestCase
         $this->assertSame($before, $this->checkoutState());
     }
 
-    /** @dataProvider invalidHttpPayments */
+    #[DataProvider('invalidHttpPayments')]
     public function test_http_rejects_invalid_paid_amounts_before_writes($paid): void
     {
         $before = $this->checkoutState();
@@ -178,7 +179,7 @@ class SecurityAuditTest extends TestCase
         return array_merge(self::invalidHttpPayments(), [[NAN], [INF], [-INF]]);
     }
 
-    /** @dataProvider debtDownPayments */
+    #[DataProvider('debtDownPayments')]
     public function test_debt_payment_preserves_empty_dp_and_remaining_debt($paid, int $remaining): void
     {
         $customer = User::factory()->create(['role' => 'pembeli', 'credit_limit' => 200000]);
@@ -195,7 +196,7 @@ class SecurityAuditTest extends TestCase
         return [[25000, 75000], ['', 100000], [null, 100000]];
     }
 
-    /** @dataProvider invalidWholesaleWrites */
+    #[DataProvider('invalidWholesaleWrites')]
     public function test_product_rejects_invalid_wholesale_before_mutating_product_rules_or_initial_stock(bool $updating, array $invalid): void
     {
         $owner = User::factory()->create(['role' => 'owner']);
@@ -234,7 +235,7 @@ class SecurityAuditTest extends TestCase
         return $cases;
     }
 
-    /** @dataProvider productWriteModes */
+    #[DataProvider('productWriteModes')]
     public function test_product_and_wholesale_write_rolls_back_when_rule_persistence_fails(bool $updating): void
     {
         $owner = User::factory()->create(['role' => 'owner']);
@@ -269,7 +270,7 @@ class SecurityAuditTest extends TestCase
         return [[false], [true]];
     }
 
-    /** @dataProvider invalidPersistedDiscounts */
+    #[DataProvider('invalidPersistedDiscounts')]
     public function test_checkout_rejects_invalid_effective_persisted_discount_without_writes(string $type, $value, int $minimum): void
     {
         \App\Models\WholesaleRule::create([
@@ -293,7 +294,7 @@ class SecurityAuditTest extends TestCase
         ];
     }
 
-    /** @dataProvider validWholesalePrices */
+    #[DataProvider('validWholesalePrices')]
     public function test_valid_wholesale_rules_preserve_checkout_prices_and_server_cost_snapshot(string $type, int $value, int $total): void
     {
         $owner = User::factory()->create(['role' => 'owner']);
@@ -315,7 +316,7 @@ class SecurityAuditTest extends TestCase
         return [['fixed_amount', 1000, 27000], ['percentage', 10, 27000], ['special_price', 8000, 24000], ['special_price', 0, 0]];
     }
 
-    /** @dataProvider forbiddenManualTypes */
+    #[DataProvider('forbiddenManualTypes')]
     public function test_manual_mutation_rejects_reserved_and_unknown_types(string $type, string $alias): void
     {
         $owner = User::factory()->create(['role' => 'owner']);
@@ -344,7 +345,7 @@ class SecurityAuditTest extends TestCase
         return $cases;
     }
 
-    /** @dataProvider invalidManualQuantities */
+    #[DataProvider('invalidManualQuantities')]
     public function test_manual_mutation_validates_integer_quantity_before_casting($quantity): void
     {
         $owner = User::factory()->create(['role' => 'owner']);
@@ -368,7 +369,7 @@ class SecurityAuditTest extends TestCase
         return [[1.5], [true], ['2oops'], [0], ['1.2'], [2147483648], [null]];
     }
 
-    /** @dataProvider invalidPhysicalQuantities */
+    #[DataProvider('invalidPhysicalQuantities')]
     public function test_physical_stock_validates_nonnegative_integer_before_casting($quantity): void
     {
         $owner = User::factory()->create(['role' => 'owner']);

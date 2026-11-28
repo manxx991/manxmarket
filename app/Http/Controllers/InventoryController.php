@@ -157,9 +157,9 @@ class InventoryController extends Controller
         if ($request->hasFile('image')) {
             $image = $request->file('image');
             $fileName = $image->hashName();
-            $newImagePath = 'products/'.$fileName;
+            $newImagePath = 'assets/produk/'.$fileName;
             try {
-                $stored = $image->storeAs('products', $fileName, 'public');
+                $stored = $image->storeAs('assets/produk', $fileName, 'product_assets');
             } catch (Throwable $e) {
                 report($e);
                 $stored = false;
@@ -231,11 +231,16 @@ class InventoryController extends Controller
 
     private function deleteProductImage(string $path): void
     {
-        if (!preg_match('/\Aproducts\/[A-Za-z0-9_-]+\.(?:jpe?g|png|webp)\z/', $path)) {
+        $prefix = Str::startsWith($path, 'assets/produk/') ? 'assets/produk/' : 'products/';
+        if (!Str::startsWith($path, $prefix)
+            || basename($path) !== substr($path, strlen($prefix))
+            || !preg_match('/\A[A-Za-z0-9]{40}\.(?:jpe?g|png|webp)\z/i', basename($path))
+            || !in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'webp'], true)) {
             return;
         }
+        $disk = $prefix === 'assets/produk/' ? 'product_assets' : 'public';
         try {
-            if (!Storage::disk('public')->delete($path)) {
+            if (!Storage::disk($disk)->delete($path)) {
                 report(new \RuntimeException('Gambar produk gagal dihapus: '.$path));
             }
         } catch (Throwable $e) {

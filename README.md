@@ -8,7 +8,7 @@ README ini menjelaskan aplikasi Laravel dalam repositori ini. Dokumen `docs/PRD.
 
 | Komponen | Spesifikasi |
 | --- | --- |
-| Aplikasi | Laravel 10, PHP `^8.1` |
+| Aplikasi | Laravel 13, PHP `^8.3` |
 | Basis data operasional | MySQL; migrasi tersedia di `database/migrations/` |
 | Antarmuka | Blade, Tailwind CSS, Vite, dan JavaScript |
 | Dependensi | Composer 2 dan Node.js/npm; CI menggunakan Node.js 24 |
@@ -17,6 +17,49 @@ README ini menjelaskan aplikasi Laravel dalam repositori ini. Dokumen `docs/PRD.
 | Struk | Cetak dari browser dengan pilihan kertas thermal 58 mm atau 80 mm |
 
 Kode aplikasi berada di `app/`, tampilan di `resources/views/`, rute di `routes/web.php`, dan aset kasir di `public/assets/js/`. Data bisnis disimpan dalam tabel pengguna, kategori, produk, aturan grosir, transaksi dan itemnya, mutasi stok, piutang, pembayaran piutang, serta pengaturan toko. Transaksi kasir dan perubahan stok terkait ditangani dalam transaksi basis data.
+
+## Struktur folder proyek
+
+Diagram ringkas lokasi komponen utama:
+
+```text
+MANXMARKET/
+├── app/
+│   ├── Http/Controllers/
+│   ├── Models/
+│   ├── Providers/
+│   └── Services/
+├── bootstrap/
+├── config/
+├── database/
+│   ├── factories/
+│   ├── migrations/
+│   ├── seeders/
+│   └── backups/
+├── docs/
+├── public/
+│   └── assets/
+│       ├── js/
+│       └── produk/
+├── resources/
+│   ├── css/
+│   ├── js/
+│   └── views/
+├── routes/
+├── storage/
+├── tests/Feature/
+├── node_modules/
+├── vendor/
+├── .env.example
+├── artisan
+├── backup.bat
+├── composer.json
+├── package.json
+├── phpunit.xml
+└── start.bat
+```
+
+`app/Http/Controllers/`, `app/Models/`, dan `app/Services/` berisi alur bisnis; migration dan seeder ada di `database/`; tampilan Blade ada di `resources/views/`. Gambar produk baru disimpan di `public/assets/produk/` dan disajikan oleh web server. `vendor/` dan `node_modules/` dibuat oleh Composer/npm, bukan source yang perlu ditambahkan ke Git. Folder `database/backups/` bersifat lokal dan dapat berisi dump dengan data sensitif; jangan mengunggahnya ke repositori.
 
 ## Fungsi aplikasi
 
@@ -43,7 +86,7 @@ Kasir hanya dapat mendaftarkan akun `pembeli` dari POS. Akun baru tersebut menda
 
 ## Persyaratan instalasi
 
-- PHP 8.1 atau versi kompatibel dengan Laravel 10, beserta ekstensi umum Laravel (`mbstring`, `openssl`, `pdo_mysql`, `fileinfo`, `xml`, `curl`). Untuk pengujian SQLite, sediakan `pdo_sqlite`.
+- PHP 8.3 atau lebih baru, beserta ekstensi umum Laravel (`mbstring`, `openssl`, `pdo_mysql`, `fileinfo`, `xml`, `curl`). Untuk pengujian SQLite, sediakan `pdo_sqlite`.
 - Composer 2, Node.js dan npm. Node.js 24 dipakai dalam konfigurasi CI proyek.
 - Server MySQL dan sebuah basis data kosong khusus aplikasi. Contoh di bawah memakai MySQL 8.x.
 - Web server yang mengarah ke direktori `public/`, atau server pengembangan Laravel (`php artisan serve`). Printer thermal dan payload QRIS merchant diperlukan hanya bila fitur terkait dipakai.
@@ -91,13 +134,12 @@ Contoh perintah shell berikut dapat dijalankan di Git Bash, macOS, atau Linux. J
 
    `.env.example` awalnya memakai SQLite. Pastikan `DB_CONNECTION` telah diubah ke `mysql` sebelum migrasi. Jika sebelumnya ada konfigurasi Laravel yang tercache, `php artisan config:clear` pada langkah berikut akan menghapusnya. Jangan masukkan `.env` ke Git. Untuk server yang dapat diakses publik, gunakan `APP_ENV=production`, `APP_DEBUG=false`, dan konfigurasi HTTPS/sesi yang sesuai.
 
-4. Buat kunci aplikasi, jalankan migrasi, siapkan tautan gambar produk, dan bangun aset frontend.
+4. Buat kunci aplikasi, jalankan migrasi, dan bangun aset frontend.
 
    ```bash
    php artisan config:clear
    php artisan key:generate
    php artisan migrate
-   php artisan storage:link
    npm run build
    ```
 
@@ -119,7 +161,39 @@ Contoh perintah shell berikut dapat dijalankan di Git Bash, macOS, atau Linux. J
 
    Masuk dengan akun yang telah dibuat. Bila memakai Apache/Nginx atau Laragon, arahkan document root virtual host ke folder `public/` dan sesuaikan `APP_URL` dengan alamat situs. Jangan gunakan `php artisan serve` sebagai server produksi.
 
-Gambar produk baru disimpan di `storage/app/public/products/` dan diakses melalui tautan `public/storage/`; pastikan direktori penyimpanan dapat ditulisi oleh proses PHP. Foto produk bawaan di `public/assets/produk/` tetap tersedia sebagai gambar cadangan. Jika memindahkan instalasi, pindahkan berkas unggahan dan data MySQL secara terpisah; keduanya bukan bagian dari kode Git.
+### Memulihkan database dari backup
+
+Backup database dan foto unggahan adalah data operasional yang dikelola terpisah dan tidak disertakan di repository ini. Pulihkan backup hanya ke database tujuan yang kosong dan telah diverifikasi; jangan impor ke database yang sudah berisi transaksi.
+
+Setelah database kosong, `.env`, dan dependensi disiapkan, impor backup privat melalui phpMyAdmin atau klien MySQL. Jangan unggah dump atau kredensial ke GitHub.
+
+#### Melalui phpMyAdmin
+
+1. Jalankan layanan MySQL. Buka phpMyAdmin pada hosting atau server Anda dan login dengan akun database yang berwenang.
+2. Di tab **Basis data**, buat database kosong `manxmarket_local` jika belum dibuat pada langkah 2 instalasi. Jika sudah ada, pilih database tersebut dari panel kiri. Pastikan database tujuan kosong dan namanya sama dengan `DB_DATABASE` di `.env`.
+3. Pada halaman database tujuan, buka tab **Impor**. Pilih file backup privat dari komputer atau penyimpanan aman Anda.
+4. Biarkan format **SQL**, lalu klik **Impor** atau **Kirim** di bagian bawah halaman. Tunggu pesan keberhasilan; di tab **Struktur**, pastikan tabel `users`, `products`, dan `migrations` muncul. Jika impor gagal di tengah proses, jangan langsung mengulang pada database yang sudah terisi sebagian; periksa kesalahannya dan ulangi hanya pada database tujuan baru yang kosong.
+
+#### Melalui terminal (alternatif)
+
+Jalankan dari root proyek. Ganti `NAMA_USER_DB` dengan username MySQL Anda; `mysql -p` meminta kata sandi tanpa menaruhnya pada baris perintah:
+
+```bash
+mysql -h DB_HOST -u DB_USER -p DB_DATABASE < /path/to/private-backup.sql
+```
+
+Setelah impor berhasil melalui salah satu cara di atas, jalankan:
+
+```bash
+php artisan config:clear
+npm run build
+```
+
+Ganti placeholder perintah dengan konfigurasi server Anda. Impor dump yang memuat schema, migrations, dan data tidak perlu diikuti `migrate` atau `db:seed`. Pertahankan `APP_KEY` asal jika data terenkripsi perlu dibaca. Pulihkan foto unggahan secara terpisah; dump SQL tidak memuat file gambar. Gunakan akun database khusus aplikasi, bukan `root`.
+
+File SQL operasional tidak dipublikasikan bersama source code.
+
+Gambar produk baru disimpan di `public/assets/produk/`; pastikan direktori ini dapat ditulisi oleh proses PHP. Gambar dari versi lama di `storage/app/public/` memerlukan `php artisan storage:link`. Jika memindahkan instalasi, pindahkan berkas unggahan dan data MySQL secara terpisah; keduanya bukan bagian dari kode Git.
 
 ## Cara penggunaan
 
@@ -167,7 +241,7 @@ npm run build
 
 ## Cadangan data dan catatan operasional
 
-`backup.bat` menyediakan contoh skrip pencadangan MySQL untuk Windows, termasuk salinan tambahan dan rotasi berkas tujuh hari. **Skrip tidak otomatis terjadwal oleh instalasi ini.** Sebelum digunakan, sesuaikan lokasi `mysqldump`, nama basis data, akun MySQL, direktori cadangan, dan tujuan salinan yang saat ini spesifik ke komputer asal. Atur jadwal secara terpisah, simpan cadangan di luar web root, lindungi aksesnya, dan uji pemulihan ke basis data terpisah. Cadangkan juga gambar produk yang diunggah.
+`backup.bat` adalah contoh skrip cadangan lokal; lokasi `mysqldump`, akun database, direktori cadangan, dan tujuan offsite perlu disesuaikan dengan lingkungan Anda. Skrip tidak otomatis terjadwal. Simpan backup di luar web root dengan akses terbatas, uji pemulihan ke database terpisah, dan cadangkan gambar unggahan secara terpisah.
 
 Jangan unggah `.env`, dump SQL, atau berkas cadangan berisi data pelanggan ke repositori. Untuk penggunaan publik, periksa konfigurasi sesi, HTTPS, hak akses berkas, dan integrasi merchant sebelum membuka aplikasi ke jaringan. Fitur pergantian role tersedia bagi Owner dan dapat membuka sesi akun aktif lain; batasi akses akun Owner.
 
@@ -179,4 +253,4 @@ Jangan unggah `.env`, dump SQL, atau berkas cadangan berisi data pelanggan ke re
 | Migrasi gagal tersambung ke MySQL | Pastikan MySQL aktif, basis data sudah dibuat, `pdo_mysql` aktif, dan `DB_*` di `.env` benar; lalu jalankan `php artisan config:clear`. |
 | Tampilan tanpa CSS atau muncul error Vite manifest | Jalankan `npm ci` dan `npm run build`; untuk mode pengembangan, jalankan `npm run dev`. |
 | Tidak bisa login setelah migrasi | Instalasi baru belum memiliki akun. Isi `SEED_DEFAULT_PASSWORD` lalu jalankan `php artisan db:seed` **hanya pada basis data yang memang ingin diberi akun contoh**. |
-| Gambar produk gagal disimpan/ditampilkan | Periksa izin tulis `storage/app/public/products/`, jalankan `php artisan storage:link`, dan pastikan `APP_URL` sesuai alamat situs. |
+| Gambar produk gagal disimpan/ditampilkan | Periksa izin tulis `public/assets/produk/` dan pastikan `APP_URL` sesuai alamat situs. Untuk gambar dari versi lama di `storage/app/public/`, jalankan `php artisan storage:link`. |
